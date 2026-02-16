@@ -1,12 +1,14 @@
 package com.openlifting.ui.screens.history
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -28,17 +30,34 @@ fun HistoryScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Historial") })
+            TopAppBar(
+                title = { Text("Historial") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
         }
     ) { padding ->
         if (uiState.sessions.isEmpty()) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text("No hay sesiones registradas")
+                Icon(
+                    Icons.Filled.FitnessCenter,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "No hay sesiones registradas",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         } else {
             LazyColumn(
@@ -46,10 +65,13 @@ fun HistoryScreen(
                     .fillMaxSize()
                     .padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(uiState.sessions) { summary ->
-                    SessionCard(summary = summary, onClick = { onSessionClick(summary.session.id) })
+                    SessionCard(
+                        summary = summary,
+                        onClick = { onSessionClick(summary.session.id) }
+                    )
                 }
             }
         }
@@ -61,10 +83,10 @@ fun SessionCard(summary: SessionSummary, onClick: () -> Unit) {
     val session = summary.session
     val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
 
-    val (statusIcon, statusColor) = when (summary.balanceStatus) {
-        BalanceStatus.GOOD -> Icons.Filled.CheckCircle to MaterialTheme.colorScheme.primary
-        BalanceStatus.WARNING -> Icons.Filled.Warning to MaterialTheme.colorScheme.tertiary
-        BalanceStatus.ALERT -> Icons.Filled.Warning to MaterialTheme.colorScheme.error
+    val statusColor = when (summary.balanceStatus) {
+        BalanceStatus.GOOD -> MaterialTheme.colorScheme.primary
+        BalanceStatus.WARNING -> MaterialTheme.colorScheme.secondary
+        BalanceStatus.ALERT -> MaterialTheme.colorScheme.error
     }
 
     Card(
@@ -72,24 +94,38 @@ fun SessionCard(summary: SessionSummary, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            // Colored indicator stripe
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(4.dp)
+                    .background(statusColor)
+            )
+
+            // Content
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp)
+            ) {
                 Text(
                     text = session.date.format(formatter),
                     style = MaterialTheme.typography.titleSmall
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+
                 val totalReps = session.series.sumOf { it.repetitions.size }
                 val maxWeight = session.series.maxOfOrNull { it.weightKg }?.toInt() ?: 0
-                Text(
-                    text = "${session.series.size} series | $totalReps reps | Max: ${maxWeight}kg",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    InfoChip("${session.series.size} series")
+                    InfoChip("$totalReps reps")
+                    InfoChip("Max ${maxWeight}kg")
+                }
+
                 summary.alertSummary?.let { alert ->
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = alert,
                         style = MaterialTheme.typography.bodySmall,
@@ -97,13 +133,34 @@ fun SessionCard(summary: SessionSummary, onClick: () -> Unit) {
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                statusIcon,
-                contentDescription = summary.balanceStatus.displayName,
-                tint = statusColor,
-                modifier = Modifier.size(24.dp)
-            )
+
+            // Status dot
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .align(Alignment.CenterVertically)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(statusColor, CircleShape)
+                )
+            }
         }
+    }
+}
+
+@Composable
+fun InfoChip(text: String) {
+    Surface(
+        shape = RoundedCornerShape(6.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

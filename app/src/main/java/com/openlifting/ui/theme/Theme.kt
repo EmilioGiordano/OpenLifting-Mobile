@@ -1,57 +1,74 @@
 package com.openlifting.ui.theme
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+private val OpenLiftingColorScheme = darkColorScheme(
+    primary = Blue400,
+    onPrimary = TextPrimary,
+    primaryContainer = Navy500,
+    onPrimaryContainer = Blue300,
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    secondary = Terracotta400,
+    onSecondary = Navy950,
+    secondaryContainer = Terracotta600,
+    onSecondaryContainer = Terracotta400,
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    tertiary = Terracotta500,
+    onTertiary = TextPrimary,
+
+    background = Navy900,
+    onBackground = TextPrimary,
+
+    surface = Navy700,
+    onSurface = TextPrimary,
+    surfaceVariant = Navy600,
+    onSurfaceVariant = TextSecondary,
+
+    error = Red400,
+    onError = Navy950,
+    errorContainer = Red500,
+    onErrorContainer = TextPrimary,
+
+    outline = Navy500,
+    outlineVariant = Navy600,
+
+    inverseSurface = TextPrimary,
+    inverseOnSurface = Navy900,
+    inversePrimary = Navy500,
+
+    scrim = Color.Black,
+    surfaceTint = Color.Transparent
 )
 
 @Composable
 fun OpenLiftingMobileTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            @Suppress("DEPRECATION")
+            window.statusBarColor = Navy950.toArgb()
+            @Suppress("DEPRECATION")
+            window.navigationBarColor = ForestGreenDark.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+            }
         }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = OpenLiftingColorScheme,
         typography = Typography,
         content = content
     )
