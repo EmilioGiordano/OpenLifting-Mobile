@@ -213,6 +213,98 @@ object MockRepository {
         return recommendations
     }
 
+    // Scoring y metricas avanzadas
+
+    fun getRepQualityScore(rep: Repetition): Int {
+        val reading = rep.emgReading
+
+        // Simetria (0-50): penaliza desbalance bilateral
+        val maxImbalance = MuscleGroup.entries.maxOf { calculateBilateralDifference(reading, it) }
+        val symmetryScore = (50f - maxImbalance * 2.5f).coerceIn(0f, 50f)
+
+        // Compensacion (0-30): penaliza sobrecarga lumbar vs gluteos
+        val avgLumbar = (reading.lowerBackLeft + reading.lowerBackRight) / 2f
+        val avgGlute = (reading.glutesLeft + reading.glutesRight) / 2f
+        val compRatio = if (avgGlute > 1f) avgLumbar / avgGlute else 2f
+        val compensationScore = ((1.5f - compRatio.coerceIn(0f, 1.5f)) / 1.5f * 30f)
+
+        // Calidad de activacion (0-20): motores primarios deben dominar
+        val avgQuad = (reading.quadricepsLeft + reading.quadricepsRight) / 2f
+        val avgHam = (reading.hamstringsLeft + reading.hamstringsRight) / 2f
+        val primaryAvg = (avgQuad + avgGlute) / 2f
+        val secondaryAvg = (avgHam + avgLumbar) / 2f
+        val dominanceRatio = if (secondaryAvg > 0) primaryAvg / secondaryAvg else 3f
+        val qualityScore = ((dominanceRatio - 0.5f) / 2f * 20f).coerceIn(0f, 20f)
+
+        return (symmetryScore + compensationScore + qualityScore).toInt().coerceIn(0, 100)
+    }
+
+    fun getSeriesQualityScore(series: Series): Int {
+        return series.repetitions.map { getRepQualityScore(it) }.average().toInt()
+    }
+
+    fun getSeriesSymmetryIndex(series: Series): Float {
+        val avgImbalance = series.repetitions.flatMap { rep ->
+            MuscleGroup.entries.map { calculateBilateralDifference(rep.emgReading, it) }
+        }.average()
+        return (100f - avgImbalance.toFloat() * 2f).coerceIn(0f, 100f)
+    }
+
+    fun getSeriesCompensationIndex(series: Series): Float {
+        return series.repetitions.map { rep ->
+            val avgLumbar = (rep.emgReading.lowerBackLeft + rep.emgReading.lowerBackRight) / 2f
+            val avgGlute = (rep.emgReading.glutesLeft + rep.emgReading.glutesRight) / 2f
+            if (avgGlute > 1f) avgLumbar / avgGlute else 2f
+        }.average().toFloat()
+    }
+
+    data class PeakActivation(
+        val muscle: MuscleGroup,
+        val rep: Int,
+        val value: Float,
+        val side: String // "Izq" o "Der"
+    )
+
+    fun getSeriesPeakActivation(series: Series): PeakActivation {
+        var peakMuscle = MuscleGroup.QUADRICEPS
+        var peakRep = 1
+        var peakValue = 0f
+        var peakSide = "Izq"
+
+        series.repetitions.forEach { rep ->
+            val reading = rep.emgReading
+            val activations = listOf(
+                Triple(MuscleGroup.QUADRICEPS, reading.quadricepsLeft, "Izq"),
+                Triple(MuscleGroup.QUADRICEPS, reading.quadricepsRight, "Der"),
+                Triple(MuscleGroup.GLUTES, reading.glutesLeft, "Izq"),
+                Triple(MuscleGroup.GLUTES, reading.glutesRight, "Der"),
+                Triple(MuscleGroup.HAMSTRINGS, reading.hamstringsLeft, "Izq"),
+                Triple(MuscleGroup.HAMSTRINGS, reading.hamstringsRight, "Der"),
+                Triple(MuscleGroup.LOWER_BACK, reading.lowerBackLeft, "Izq"),
+                Triple(MuscleGroup.LOWER_BACK, reading.lowerBackRight, "Der")
+            )
+            activations.forEach { (muscle, value, side) ->
+                if (value > peakValue) {
+                    peakValue = value
+                    peakMuscle = muscle
+                    peakRep = rep.number
+                    peakSide = side
+                }
+            }
+        }
+        return PeakActivation(peakMuscle, peakRep, peakValue, peakSide)
+    }
+
+    fun getRepAverageActivations(rep: Repetition): Map<MuscleGroup, Float> {
+        val reading = rep.emgReading
+        return mapOf(
+            MuscleGroup.QUADRICEPS to (reading.quadricepsLeft + reading.quadricepsRight) / 2f,
+            MuscleGroup.GLUTES to (reading.glutesLeft + reading.glutesRight) / 2f,
+            MuscleGroup.HAMSTRINGS to (reading.hamstringsLeft + reading.hamstringsRight) / 2f,
+            MuscleGroup.LOWER_BACK to (reading.lowerBackLeft + reading.lowerBackRight) / 2f
+        )
+    }
+
     private fun averageReading(series: Series): EmgReading {
         val reps = series.repetitions
         val n = reps.size.toFloat()
