@@ -3,10 +3,12 @@ package com.openlifting.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.openlifting.data.local.dao.AthleteProfileDao
+import com.openlifting.data.local.dao.InstructorAthleteDao
 import com.openlifting.data.local.dao.SessionDao
 import com.openlifting.data.local.dao.SetDao
 import com.openlifting.data.local.dao.UserDao
 import com.openlifting.data.local.entity.AthleteProfileEntity
+import com.openlifting.data.local.entity.InstructorAthleteEntity
 import com.openlifting.data.local.entity.MuscleActivationEntity
 import com.openlifting.data.local.entity.MvcCalibrationEntity
 import com.openlifting.data.local.entity.RepEntity
@@ -26,9 +28,10 @@ import com.openlifting.data.local.entity.UserEntity
         RepEntity::class,
         MuscleActivationEntity::class,
         SetMetricsEntity::class,
-        RecommendationEntity::class
+        RecommendationEntity::class,
+        InstructorAthleteEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class OpenLiftingDatabase : RoomDatabase() {
@@ -36,4 +39,5 @@ abstract class OpenLiftingDatabase : RoomDatabase() {
     abstract fun athleteProfileDao(): AthleteProfileDao
     abstract fun sessionDao(): SessionDao
     abstract fun setDao(): SetDao
+    abstract fun instructorAthleteDao(): InstructorAthleteDao
 }

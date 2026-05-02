@@ -25,4 +25,5 @@ object DatabaseModule {
     @Provides fun provideAthleteProfileDao(db: OpenLiftingDatabase) = db.athleteProfileDao()
     @Provides fun provideSessionDao(db: OpenLiftingDatabase) = db.sessionDao()
     @Provides fun provideSetDao(db: OpenLiftingDatabase) = db.setDao()
+    @Provides fun provideInstructorAthleteDao(db: OpenLiftingDatabase) = db.instructorAthleteDao()
 }
