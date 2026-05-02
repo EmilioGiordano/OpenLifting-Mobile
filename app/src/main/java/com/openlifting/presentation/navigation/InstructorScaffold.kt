@@ -20,7 +20,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.openlifting.presentation.common.PlaceholderScreen
+import com.openlifting.presentation.athlete.session.SessionRouteArgs
+import com.openlifting.presentation.athlete.session.SessionScreen
+import com.openlifting.presentation.instructor.athlete.InstructorAthleteDetailScreen
 import com.openlifting.presentation.instructor.guest.CreateGuestScreen
 import com.openlifting.presentation.instructor.home.InstructorHomeScreen
 import com.openlifting.presentation.instructor.profile.InstructorProfileScreen
@@ -34,12 +36,23 @@ sealed class InstructorTab(val route: String, val label: String, val icon: Image
 
 private object InstructorRoute {
     const val GUEST_NEW = "instructor/guest/new"
+
     /** profileId param — calibrates the guest with that AthleteProfile id. */
     const val GUEST_CALIBRATE = "instructor/guest/{profileId}/calibrate"
     fun guestCalibrate(profileId: Long) = "instructor/guest/$profileId/calibrate"
-    /** profileId param — instructor's read-only view of an athlete (next sub-batch). */
+
+    /** profileId param — read-only detail view of one of my athletes. */
     const val ATHLETE_DETAIL = "instructor/athlete/{profileId}"
     fun athleteDetail(profileId: Long) = "instructor/athlete/$profileId"
+
+    /** profileId param — recalibrate this athlete's MVCs (instructor-driven). */
+    const val ATHLETE_RECALIBRATE = "instructor/athlete/{profileId}/recalibrate"
+    fun athleteRecalibrate(profileId: Long) = "instructor/athlete/$profileId/recalibrate"
+
+    /** Two args — start a session for [athleteUserId] supervised by [instructorUserId]. */
+    const val ATHLETE_SESSION = "instructor/session/{athleteUserId}/{instructorUserId}"
+    fun athleteSession(athleteUserId: Long, instructorUserId: Long) =
+        "instructor/session/$athleteUserId/$instructorUserId"
 }
 
 private val instructorTabs = listOf(InstructorTab.Athletes, InstructorTab.Profile)
@@ -143,13 +156,49 @@ private fun InstructorNavHost(
         composable(
             route     = InstructorRoute.ATHLETE_DETAIL,
             arguments = listOf(navArgument("profileId") { type = NavType.LongType })
+        ) { backStack ->
+            val profileId = backStack.arguments?.getLong("profileId") ?: return@composable
+            InstructorAthleteDetailScreen(
+                profileId      = profileId,
+                onBack         = { navController.popBackStack() },
+                onStartSession = { athleteUserId, instructorUserId ->
+                    navController.navigate(
+                        InstructorRoute.athleteSession(athleteUserId, instructorUserId)
+                    )
+                },
+                onRecalibrate  = { pid ->
+                    navController.navigate(InstructorRoute.athleteRecalibrate(pid))
+                },
+                onSessionClick = { _ ->
+                    // TODO: navigate to a read-only Session Detail for instructors. For now
+                    // the row tap is a no-op so it doesn't dead-end.
+                }
+            )
+        }
+
+        composable(
+            route     = InstructorRoute.ATHLETE_RECALIBRATE,
+            arguments = listOf(navArgument("profileId") { type = NavType.LongType })
+        ) { backStack ->
+            val profileId = backStack.arguments?.getLong("profileId") ?: return@composable
+            OnboardingHost(
+                entry       = OnboardingEntry.GuestCalibration(profileId),
+                onCompleted = { navController.popBackStack() },
+                onAbort     = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route     = InstructorRoute.ATHLETE_SESSION,
+            arguments = listOf(
+                navArgument(SessionRouteArgs.ATHLETE_USER_ID)    { type = NavType.LongType },
+                navArgument(SessionRouteArgs.INSTRUCTOR_USER_ID) { type = NavType.LongType }
+            )
         ) {
-            // TODO: real InstructorAthleteDetailScreen (next sub-batch). Keep a stable
-            // placeholder for now so the bottom bar / FAB don't flicker on tap.
-            PlaceholderScreen(
-                title       = "Detalle del atleta",
-                description = "Próximamente. Acá vas a ver el perfil completo del invitado, su historial de sesiones y un botón para iniciar una sesión nueva.",
-                secondaryAction = "Volver" to { navController.popBackStack() }
+            // SessionViewModel reads ATHLETE_USER_ID + INSTRUCTOR_USER_ID from
+            // SavedStateHandle automatically — args populated by Compose Navigation.
+            SessionScreen(
+                onFinish = { navController.popBackStack() }
             )
         }
 

@@ -28,8 +28,11 @@ class SessionRepositoryImpl @Inject constructor(
     private val setDao: SetDao
 ) : SessionRepository {
 
-    override suspend fun createSession(athleteUserId: Long): Long =
-        sessionDao.insert(TrainingSessionEntity(athleteUserId = athleteUserId))
+    override suspend fun createSession(athleteUserId: Long, instructorUserId: Long?): Long =
+        sessionDao.insert(TrainingSessionEntity(
+            athleteUserId    = athleteUserId,
+            instructorUserId = instructorUserId
+        ))
 
     override suspend fun endSession(sessionLocalId: Long) {
         val session = sessionDao.getById(sessionLocalId) ?: return
