@@ -92,23 +92,41 @@ CTA primary     ink (#1A1523)  — black button on white
 
 ### Dark warm mode tokens
 ```
-bg              #1A1614    (NOT navy — almost-black with warm brown undertone)
-surfaces        #2A2218, #2D2925, #3D3833
-ink (text)      #F4EEE6    (warm white)
+bg              #14110F    (warm near-black — NOT navy)
+bg-tint         #1A1614    (subtle warm tint above bg)
+surface         #1F1B17    (cards, primary surfaces)
+surface-2       #2A2218    (nested surfaces, amber-soft fill)
+surface-3       #2D2925    (deepest surfaces, equals rule)
+ink (text)      #F4EEE6    (warm white — also CTA fill)
 ink-2           #C9C2B8
 ink-3           #8E8678
-emerald (ok)    #1FB088    (brighter than light's emerald for dark contrast)
+rule            #2D2925    (low-emphasis dividers)
+rule-strong     #3D3833    (high-emphasis dividers)
+emerald         #1FB088
 emerald-soft    #112A23
-amber (CTA)     #D9882A / #F0B968
-warn            #D9882A
-risk            #E04C40 / #F4998E
-CTA primary     amber (#D9882A)  — warm CTA on warm dark
+emerald-ink     #5BD0AC    (text on emerald-soft surfaces)
+amber           #D9A878    (soft warm accent — NOT CTA, NOT warn)
+amber-soft      #2A2218    (= surface-2)
+amber-ink       #F0B968
+warn            #D9882A    (distinct from amber — used for warn states only)
+warn-soft       #2A1E0C
+warn-ink        #F0B968
+risk            #E04C40
+risk-soft       #2A1110
+risk-ink        #F4998E    (text on risk-soft surfaces, also bright risk for emphasis)
+CTA primary     cream (#F4EEE6)  — warm-white button on warm dark
+CTA text on bg  #14110F          (bg color used as the button label)
 ```
 
+**Light mode tokens** mirror this structure: `--rule` (only one level, no rule-strong), and the same triplet system (`*`, `*-soft`, `*-ink`) for emerald, amber, warn, risk. The full light table is the same as before.
+
+The canonical source for all values is `UI-inspiration/Openlifting-design.html` (CSS custom properties under `:root, [data-theme="light"]` and `[data-theme="dark"]`).
+
 **Semantic rule, never break it:**
-- emerald is reserved for "data is ok" / status badges
-- amber is reserved for warmth/CTA actions in dark mode (and as a softer accent in light)
-- the dark mode CTA is amber, NOT emerald — emerald is data, amber is action
+- The CTA primary is always the highest-contrast neutral of the mode: ink in light, cream in dark warm. This mirrors the inverse: dark text on light surface ↔ light text on dark surface.
+- Emerald is reserved for "data is ok" / status badges. Same role in both modes.
+- Amber is reserved for warn states and warmth accents (banner tints, callouts, delta chips when the value moved badly). It is NEVER the primary CTA — the warm dark background already runs warm, and stacking amber on top oversaturates the screen.
+- Risk uses risk red, monitor uses warn amber, normal uses emerald — these map to `RiskLevel.NORMAL/MONITOR/RISK`.
 
 ### Typography (both modes)
 - **Space Grotesk** — display, headings, large numbers, button labels

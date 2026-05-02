@@ -43,7 +43,8 @@ private val athleteTabs = listOf(
 @Composable
 fun AthleteScaffold(
     onLogout: () -> Unit,
-    onSwitchToInstructor: () -> Unit
+    onSwitchToInstructor: () -> Unit,
+    onStartRecalibration: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val navBackStack by navController.currentBackStackEntryAsState()
@@ -77,7 +78,8 @@ fun AthleteScaffold(
             navController = navController,
             innerPadding = innerPadding,
             onLogout = onLogout,
-            onSwitchToInstructor = onSwitchToInstructor
+            onSwitchToInstructor = onSwitchToInstructor,
+            onStartRecalibration = onStartRecalibration
         )
     }
 }
@@ -104,7 +106,8 @@ private fun AthleteNavHost(
     navController: NavHostController,
     innerPadding: androidx.compose.foundation.layout.PaddingValues,
     onLogout: () -> Unit,
-    onSwitchToInstructor: () -> Unit
+    onSwitchToInstructor: () -> Unit,
+    onStartRecalibration: () -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -113,7 +116,8 @@ private fun AthleteNavHost(
     ) {
         composable(AthleteTab.Home.route) {
             AthleteHomeScreen(
-                onNewSession = { navController.navigate(AthleteTab.NewSession.route) }
+                onNewSession  = { navController.navigate(AthleteTab.NewSession.route) },
+                onCalibrate   = onStartRecalibration
             )
         }
 
@@ -145,8 +149,9 @@ private fun AthleteNavHost(
 
         composable(AthleteTab.Profile.route) {
             AthleteProfileScreen(
-                onLogout = onLogout,
-                onSwitchToInstructor = onSwitchToInstructor
+                onLogout             = onLogout,
+                onSwitchToInstructor = onSwitchToInstructor,
+                onRecalibrate        = onStartRecalibration
             )
         }
     }

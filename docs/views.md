@@ -18,7 +18,7 @@ Each view follows the same skeleton:
 
 Conventions assumed throughout (from `CLAUDE.md`):
 - Spanish copy, mono font on all numeric values.
-- Emerald = data/status, amber = action/CTA. Risk colors via `RiskLevel` (NORMAL/MONITOR/RISK).
+- Emerald = data/status. Primary CTA = highest-contrast neutral (ink in light, cream in dark warm). Amber = warn states + accents only, NEVER primary CTA. Risk colors via `RiskLevel` (NORMAL/MONITOR/RISK).
 - Light + dark warm themes share semantics; both must be supported.
 
 ---
@@ -31,11 +31,11 @@ Conventions assumed throughout (from `CLAUDE.md`):
 - **Data shown**: nothing visible — at most the app logotype while session is being resolved.
 - **Actions**: none (auto-routed).
 - **Loading state**: the splash itself *is* the loading state. Keep it ≤300 ms in the happy path.
-- **Notes**: today there is no splash composable, the user briefly sees Login while session check resolves. Worth adding a `SplashScreen` to avoid the flash.
+- **Notes**: implemented as a real `SplashScreen` composable (decided in §7.10) — brand mark + subtle loading indicator while `LoginViewModel.checkSession()` resolves. Replaces the brief Login flash that currently occurs.
 
 ### 0.2 Global error / "something went wrong"
 - Not a route — a reusable layout used by views when their root data load fails.
-- **Components**: full-screen icon + Spanish message + "Reintentar" amber button + small "Volver" text button.
+- **Components**: full-screen icon + Spanish message + "Reintentar" primary CTA button (ink/cream) + small "Volver" text button.
 - **When used**: failure of the initial Flow load on Home, History, SessionDetail, AthleteDetail.
 
 ### 0.3 Connectivity / offline banner (optional)
@@ -50,7 +50,7 @@ Conventions assumed throughout (from `CLAUDE.md`):
 - **Purpose**: authenticate an existing user.
 - **Data shown**: app name + tagline; email field; password field.
 - **Actions**:
-  - Primary: `Iniciar sesión` (amber CTA in dark, ink CTA in light).
+  - Primary: `Iniciar sesión` (primary CTA: ink in light, cream in dark).
   - Secondary: `Crear cuenta` → goes to Register.
   - Tertiary (future): `Olvidé mi contraseña` — out of MVP scope, not shown for now.
 - **Empty state**: N/A (form-only screen).
@@ -80,7 +80,7 @@ Conventions assumed throughout (from `CLAUDE.md`):
 ### 2.1 Onboarding — Welcome
 - **Route**: `ONBOARDING_WELCOME` (athlete root + first-launch only).
 - **Purpose**: explain what the app does in 2 short bullets and set expectations for the next 3 minutes.
-- **Data shown**: hero illustration, title, 2–3 bullets in Spanish, "Comenzar" amber CTA.
+- **Data shown**: hero illustration, title, 2–3 bullets in Spanish, "Comenzar" primary CTA.
 - **Actions**: `Comenzar` → Profile data.
 - **Notes**: NO sign-in copy. The user is already logged in.
 
@@ -96,7 +96,7 @@ Conventions assumed throughout (from `CLAUDE.md`):
 - **Route**: `ONBOARDING_MVC_EXPLAIN`.
 - **Purpose**: explain in plain Spanish what MVC is, why we calibrate, and what the user will do next (one short flexion per muscle/side, ~10s).
 - **Data shown**: short copy, an animated diagram or simple illustration of muscles being calibrated, list of the 5 muscles × 2 sides = 10 measurements.
-- **Actions**: `Empezar calibración` (amber) + `Saltar por ahora` (text, sets `MvcCalibration` to defaults and shows a persistent "Calibración pendiente" banner on Home).
+- **Actions**: `Empezar calibración` (primary CTA) + `Saltar por ahora` (text, sets `MvcCalibration` to defaults and shows a persistent "Calibración pendiente" banner on Home).
 - **Components**: `MuscleDiagram`, `OLPrimaryButton`, `OLLinkButton`, step indicator (2/3).
 
 ### 2.4 Onboarding — MVC calibration (per muscle × side)
@@ -131,18 +131,19 @@ Conventions assumed throughout (from `CLAUDE.md`):
 - **Data shown**:
   - Greeting row: `Hola, ${AthleteProfile.firstName}` + small chip with last session date or "Sin sesiones".
   - **Last session card**: date, set count, overall risk badge (worst risk across sets), top metric snapshot (BSA worst %, ES:GMax, H:Q).
-  - **Trend sparkline** (Vico): BSA-worst per session over the last N sessions (e.g. 6). Dotted reference line at the 10% (monitor) and 15% (risk) thresholds. Same pattern repeated for ES:GMax (separate card or toggle).
-  - **Action card**: "Nueva sesión" CTA (amber). Shows next-suggested target if we have one, otherwise just the CTA.
+  - **BSA trend sparkline** (Vico, large card): BSA-worst per session over the last N sessions (e.g. 6). Dotted reference lines at 10% (monitor) and 15% (risk). This is the protagonist visualisation per §7.7.
+  - **Compact metric chips** (row below the sparkline, two chips): ES:GMax current value + delta vs previous session; H:Q current value + delta. No sparklines for these on Home — the multi-metric trend stack lives in History.
+  - **Action card**: "Nueva sesión" primary CTA (ink in light, cream in dark). Shows next-suggested target if we have one, otherwise just the CTA.
   - Pending notices (banners, in priority order): "Calibración MVC pendiente" if `AthleteProfile.calibratedAt == null`; "Sin conexión, cambios guardados localmente" when offline (deferred).
 - **Actions**:
   - Primary: `Nueva sesión` → Session metadata (3.2).
   - Card tap on last-session card → opens that `SessionDetail` (3.5).
   - Sparkline tap → opens History (3.4) filtered by metric.
-- **Empty state**: hero "Aún no tenés sesiones" illustration + 2-line copy + amber `Comenzar primera sesión` CTA. No sparkline. No last-session card.
+- **Empty state**: hero "Aún no tenés sesiones" illustration + 2-line copy + primary CTA `Comenzar primera sesión`. No sparkline. No last-session card.
 - **Error state**: 0.2 layout if the Flow throws.
 - **Loading state**: skeleton cards (3 stacked rectangles) while the Flow emits its first value.
-- **Key components**: `BrandHeader`, `LastSessionCard`, `TrendSparklineCard`, `PendingBanner`, `OLPrimaryButton`, `EmptyHero`, `Skeleton`.
-- **Notes**: this replaces the current placeholder. Decide later whether the sparkline is a dedicated card or a tabbed widget (BSA / ES:GMax / H:Q). Default to **one card per metric**, scrollable.
+- **Key components**: `BrandHeader`, `LastSessionCard`, `BsaTrendCard`, `MetricDeltaChip` (ES:GMax + H:Q), `PendingBanner`, `OLPrimaryButton`, `EmptyHero`, `Skeleton`.
+- **Notes**: this replaces the current placeholder. Hierarchy: BSA dominates visually (large sparkline), ES:GMax and H:Q are secondary (compact chips with deltas). The full multi-metric view lives in History.
 
 ### 3.2 New session — pre-flight
 - **Route**: athlete tab `session` (entry).
@@ -231,16 +232,18 @@ Conventions assumed throughout (from `CLAUDE.md`):
   - `Editar datos personales` → 3.7.
   - `Recalibrar MVC` → reuses 2.4 in re-calibration mode.
   - `Vincular con entrenador` → 3.9 (Scan QR).
-  - `Cambiar a modo Entrenador` (only when the user has a dual role — keep current behaviour for the demo).
+  - `Modo demo: cambiar a Entrenador` (labelled explicitly as demo per §7.9 — caption beneath: "Solo para evaluación, no es una función de producción").
   - `Cerrar sesión`.
 - **Empty state**: per row — e.g. "Sin entrenador vinculado" with small CTA.
 - **Components**: `ProfileSection`, `ProfileRow`, `ThemeSegmented`, `OLTextButton`, `RiskBadge` (for "Calibración pendiente" status).
 
-### 3.7 Edit personal data (NEW — proposal)
+### 3.7 Edit personal data
 - **Route**: `profile/edit`.
-- **Purpose**: change `AthleteProfile` fields (bodyweight, age, sex). Name change is debatable — keep read-only for now.
+- **Purpose**: change `AthleteProfile` fields (bodyweight, age, sex). Name and lastname remain read-only to avoid identity drift (decided in §7.3).
+- **Data shown**: form with bodyweight, age, sex prefilled from current profile. Name and lastname shown as read-only rows above the form.
 - **Actions**: `Guardar`, `Cancelar`.
-- **Notes**: small but real. Without this, calibration stays correct but bodyweight changes silently invalidate some interpretations.
+- **Recalibration nudge**: when bodyweight is changed (delta > 2 kg threshold suggested), surface an inline suggestion banner under the field: "Considerá recalibrar tus MVC — el cambio de peso puede invalidar la calibración actual" with a small `Recalibrar` link that routes to 2.4 in re-calibration mode. The save still succeeds without recalibrating.
+- **Components**: `OLNumberField`, `OLTextField`, `SexSelector`, `RecalibrationNudgeBanner`, `OLPrimaryButton`.
 
 ### 3.8 Pair ESP32 (NEW — present in your list)
 - **Route**: `profile/pair-esp32` (entry from Profile, also reachable from Pre-flight 3.2 if device source is set to REAL).
@@ -331,8 +334,8 @@ Conventions assumed throughout (from `CLAUDE.md`):
 ### 4.8 Profile (instructor)
 - **Route**: instructor tab `profile`.
 - **Purpose**: same shape as 3.6 (athlete profile), but instructor-flavoured.
-- **Data shown**: User (name, email, role chip "Entrenador"), preferences (theme, language), counters ("3 atletas vinculados", "1 invitado"), `Cambiar a modo Atleta` toggle (demo only).
-- **Actions**: `Editar perfil`, `Cerrar sesión`, role switch.
+- **Data shown**: User (name, email, role chip "Entrenador"), preferences (theme, language), counters ("3 atletas vinculados", "1 invitado"), `Modo demo: cambiar a Atleta` toggle.
+- **Actions**: `Editar perfil`, `Cerrar sesión`, role switch (labelled "Modo demo" with a "Solo para evaluación" caption per §7.9).
 - **Notes**: instructors don't have an `AthleteProfile`, so no bodyweight/age. Profile is leaner.
 
 ---
@@ -349,7 +352,10 @@ These are components that show up in 3+ views and should be designed once. The l
 - **`BilateralRow`** — muscle name + L/R bars + per-side mono % + tiny BSA chip.
 - **`LiveActivationBar`** — animated %MVC bar; reused in calibration and measuring.
 - **`MuscleDiagram`** — body silhouette with muscle highlights; reused in Onboarding 2.3 and Calibration 2.4.
-- **`TrendSparklineCard`** — Vico chart of one metric over time, with threshold reference lines.
+- **`BsaTrendCard`** — large Vico sparkline of BSA-worst over time with dotted threshold reference lines (10%, 15%). Used on Home and AthleteDetail.
+- **`TrendSparklineCard`** — generic Vico chart of one metric over time, with threshold reference lines. Used inside History for the multi-metric stack.
+- **`MetricDeltaChip`** — compact chip with a metric label, current mono value, and signed delta vs previous. Used on Home for ES:GMax and H:Q.
+- **`RecalibrationNudgeBanner`** — inline banner inside Edit Profile that prompts a re-calibration when bodyweight changes.
 - **`LastSessionCard`** — used on Home and AthleteDetail.
 - **`SessionRow`** — list row used in History and AthleteDetail.
 - **`PendingBanner`** — top banner on Home for "calibration pending" / offline.
@@ -487,4 +493,4 @@ For completeness, things we will NOT design as full screens:
 - Instructor: **8** screens
 - Cross-cutting: **1** real (Splash) + reusable error/empty layouts.
 
-**Total ≈ 25 distinct user-facing surfaces** to design in Phase 2.
+**Total ≈ 25 distinct user-facing surfaces**, of which **~15 are unique designs** to produce in Phase 2 — the remaining ~10 are reuses of the same composables under different routes/contexts (calibration in onboarding ≡ calibration for guest; session for guest ≡ session for athlete; QR generate for link ≡ QR generate for transfer with different copy). See §8 for the implementation order.
