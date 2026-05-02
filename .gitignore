@@ -39,3 +39,7 @@ desktop.ini
 /screenshots-views/
 /UI-inspiration/
 /.claude/
+/docs/
+/mcp-screenshots/
+/old-screenshots-views/
+.playwright-mcp/

@@ -94,21 +94,23 @@ CTA primary     ink (#1A1523)  — black button on white
 ```
 bg              #1A1614    (NOT navy — almost-black with warm brown undertone)
 surfaces        #2A2218, #2D2925, #3D3833
-ink (text)      #F4EEE6    (warm white)
+ink (text)      #F4EEE6    (warm white — also doubles as CTA fill)
 ink-2           #C9C2B8
 ink-3           #8E8678
 emerald (ok)    #1FB088    (brighter than light's emerald for dark contrast)
 emerald-soft    #112A23
-amber (CTA)     #D9882A / #F0B968
+amber           #D9882A / #F0B968    (warn states + accents, NOT CTA)
 warn            #D9882A
 risk            #E04C40 / #F4998E
-CTA primary     amber (#D9882A)  — warm CTA on warm dark
+CTA primary     cream (#F4EEE6)  — warm-white button on warm dark, mirrors ink-on-light
+CTA text on CTA bg #1A1614      (dark warm bg color used as the button label)
 ```
 
 **Semantic rule, never break it:**
-- emerald is reserved for "data is ok" / status badges
-- amber is reserved for warmth/CTA actions in dark mode (and as a softer accent in light)
-- the dark mode CTA is amber, NOT emerald — emerald is data, amber is action
+- The CTA primary is always the highest-contrast neutral of the mode: ink in light, cream in dark warm. This mirrors the inverse: dark text on light surface ↔ light text on dark surface.
+- Emerald is reserved for "data is ok" / status badges. Same role in both modes.
+- Amber is reserved for warn states and warmth accents (banner tints, callouts, delta chips when the value moved badly). It is NEVER the primary CTA — the warm dark background already runs warm, and stacking amber on top oversaturates the screen.
+- Risk uses risk red, monitor uses warn amber, normal uses emerald — these map to `RiskLevel.NORMAL/MONITOR/RISK`.
 
 ### Typography (both modes)
 - **Space Grotesk** — display, headings, large numbers, button labels
