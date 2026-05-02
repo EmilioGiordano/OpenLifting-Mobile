@@ -11,33 +11,48 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.openlifting.domain.model.RiskLevel
+import com.openlifting.ui.theme.MonoText
+import com.openlifting.ui.theme.olExtras
 
-val RiskNormal  = Color(0xFF2E7D32)
-val RiskMonitor = Color(0xFFF57F17)
-val RiskRed     = Color(0xFFC62828)
-
-fun RiskLevel.toColor() = when (this) {
-    RiskLevel.NORMAL  -> RiskNormal
-    RiskLevel.MONITOR -> RiskMonitor
-    RiskLevel.RISK    -> RiskRed
+/**
+ * Maps a [RiskLevel] to its semantic foreground color from the active theme.
+ * Use this when you need the risk color outside of a [RiskBadge] (e.g. a chart line,
+ * a bar fill, a left-edge rule on a recommendation card).
+ */
+@Composable
+fun RiskLevel.toColor(): Color = when (this) {
+    RiskLevel.NORMAL  -> MaterialTheme.olExtras.emerald
+    RiskLevel.MONITOR -> MaterialTheme.olExtras.warn
+    RiskLevel.RISK    -> MaterialTheme.olExtras.risk
 }
 
-fun RiskLevel.toLabel() = when (this) {
-    RiskLevel.NORMAL  -> "Normal"
-    RiskLevel.MONITOR -> "Monitorear"
-    RiskLevel.RISK    -> "Atención"
+/**
+ * Tinted background variant of the risk color — for soft surfaces like badge fills,
+ * banner backgrounds, recommendation cards.
+ */
+@Composable
+fun RiskLevel.toSoftColor(): Color = when (this) {
+    RiskLevel.NORMAL  -> MaterialTheme.olExtras.emeraldSoft
+    RiskLevel.MONITOR -> MaterialTheme.olExtras.amberSoft
+    RiskLevel.RISK    -> MaterialTheme.olExtras.riskSoft
+}
+
+fun RiskLevel.toLabel(): String = when (this) {
+    RiskLevel.NORMAL  -> "NORMAL"
+    RiskLevel.MONITOR -> "MONITOR"
+    RiskLevel.RISK    -> "RIESGO"
 }
 
 @Composable
 fun RiskBadge(level: RiskLevel, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .background(level.toColor().copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+            .background(level.toSoftColor(), RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
         Text(
-            text = level.toLabel(),
-            style = MaterialTheme.typography.labelSmall,
+            text  = level.toLabel(),
+            style = MonoText.labelSmall,
             color = level.toColor()
         )
     }

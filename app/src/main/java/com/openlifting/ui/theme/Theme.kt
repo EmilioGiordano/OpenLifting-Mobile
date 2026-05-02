@@ -1,75 +1,135 @@
 package com.openlifting.ui.theme
 
 import android.app.Activity
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val OpenLiftingColorScheme = darkColorScheme(
-    primary = Blue400,
-    onPrimary = TextPrimary,
-    primaryContainer = Navy500,
-    onPrimaryContainer = Blue300,
+private val LightColors = lightColorScheme(
+    // Primary = highest-contrast neutral (CTA fill)
+    primary             = LightInk,
+    onPrimary           = LightBg,
+    primaryContainer    = LightInk,
+    onPrimaryContainer  = LightBg,
 
-    secondary = Terracotta400,
-    onSecondary = Navy950,
-    secondaryContainer = Terracotta600,
-    onSecondaryContainer = Terracotta400,
+    // Secondary = emerald (data / status-ok accent)
+    secondary             = LightEmerald,
+    onSecondary           = Color.White,
+    secondaryContainer    = LightEmeraldSoft,
+    onSecondaryContainer  = LightEmerald,
 
-    tertiary = Terracotta500,
-    onTertiary = TextPrimary,
+    // Tertiary = amber (warmth + warn accent — never CTA)
+    tertiary             = LightAmber,
+    onTertiary           = LightInk,
+    tertiaryContainer    = LightAmberSoft,
+    onTertiaryContainer  = LightWarn,
 
-    background = Navy900,
-    onBackground = TextPrimary,
+    // Surfaces
+    background        = LightBg,
+    onBackground      = LightInk,
+    surface           = LightSurface,
+    onSurface         = LightInk,
+    surfaceVariant    = LightBgTint,
+    onSurfaceVariant  = LightInk2,
+    surfaceTint       = Color.Transparent,
+    inverseSurface    = LightInk,
+    inverseOnSurface  = LightBg,
+    inversePrimary    = LightBg,
 
-    surface = Navy700,
-    onSurface = TextPrimary,
-    surfaceVariant = Navy600,
-    onSurfaceVariant = TextSecondary,
+    // Error = risk
+    error               = LightRisk,
+    onError             = Color.White,
+    errorContainer      = LightRiskSoft,
+    onErrorContainer    = LightRisk,
 
-    error = Red400,
-    onError = Navy950,
-    errorContainer = Red500,
-    onErrorContainer = TextPrimary,
+    // Borders / dividers
+    outline             = LightInk3,
+    outlineVariant      = LightRule,
 
-    outline = Navy500,
-    outlineVariant = Navy600,
+    scrim = Color(0x80000000)
+)
 
-    inverseSurface = TextPrimary,
-    inverseOnSurface = Navy900,
-    inversePrimary = Navy500,
+private val DarkColors = darkColorScheme(
+    // Primary = cream (CTA fill on warm dark — mirrors ink-on-light)
+    primary             = DarkInk,
+    onPrimary           = DarkBg,
+    primaryContainer    = DarkInk,
+    onPrimaryContainer  = DarkBg,
 
-    scrim = Color.Black,
-    surfaceTint = Color.Transparent
+    // Secondary = emerald (brighter for dark contrast)
+    secondary             = DarkEmerald,
+    onSecondary           = DarkBg,
+    secondaryContainer    = DarkEmeraldSoft,
+    onSecondaryContainer  = DarkEmerald,
+
+    // Tertiary = amber (warn states + accents — never CTA)
+    tertiary             = DarkAmber,
+    onTertiary           = DarkBg,
+    tertiaryContainer    = DarkAmberSoft,
+    onTertiaryContainer  = DarkAmberBright,
+
+    // Surfaces — leverage M3 surfaceContainer* slots for our 3 dark surface levels
+    background        = DarkBg,
+    onBackground      = DarkInk,
+    surface           = DarkSurface1,
+    onSurface         = DarkInk,
+    surfaceVariant    = DarkSurface2,
+    onSurfaceVariant  = DarkInk2,
+    surfaceTint       = Color.Transparent,
+    inverseSurface    = DarkInk,
+    inverseOnSurface  = DarkBg,
+    inversePrimary    = DarkBg,
+
+    // Error = risk
+    error               = DarkRisk,
+    onError             = DarkBg,
+    errorContainer      = DarkRiskSoft,
+    onErrorContainer    = DarkRiskBright,
+
+    // Borders / dividers
+    outline             = DarkInk3,
+    outlineVariant      = DarkRule,
+
+    scrim = Color(0xCC000000)
 )
 
 @Composable
 fun OpenLiftingMobileTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
+    val colorScheme = if (darkTheme) DarkColors else LightColors
+    val extras      = if (darkTheme) DarkExtras else LightExtras
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             @Suppress("DEPRECATION")
-            window.statusBarColor = Navy950.toArgb()
+            window.statusBarColor = colorScheme.background.toArgb()
             @Suppress("DEPRECATION")
-            window.navigationBarColor = ForestGreenDark.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = false
-                isAppearanceLightNavigationBars = false
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
             }
         }
     }
 
-    MaterialTheme(
-        colorScheme = OpenLiftingColorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalOpenLiftingExtras provides extras) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography  = Typography,
+            shapes      = OpenLiftingShapes,
+            content     = content
+        )
+    }
 }
