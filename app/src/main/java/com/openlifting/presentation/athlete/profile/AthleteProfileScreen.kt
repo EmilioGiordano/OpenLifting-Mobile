@@ -43,6 +43,7 @@ import com.openlifting.ui.theme.olExtras
 fun AthleteProfileScreen(
     onLogout: () -> Unit,
     onSwitchToInstructor: () -> Unit,
+    onRecalibrate: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val user      by viewModel.user.collectAsState()
@@ -72,6 +73,16 @@ fun AthleteProfileScreen(
                     current = themeMode,
                     onChange = viewModel::setThemeMode
                 )
+            }
+
+            // Calibración section
+            ProfileSection(label = "CALIBRACIÓN") {
+                OutlinedButton(
+                    onClick  = onRecalibrate,
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Text("Recalibrar MVC")
+                }
             }
 
             // Cuenta section

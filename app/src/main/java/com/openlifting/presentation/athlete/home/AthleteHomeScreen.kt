@@ -31,6 +31,7 @@ import com.openlifting.ui.theme.olExtras
 @Composable
 fun AthleteHomeScreen(
     onNewSession: () -> Unit,
+    onCalibrate: () -> Unit = {},
     viewModel: AthleteHomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -38,8 +39,8 @@ fun AthleteHomeScreen(
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when (val state = uiState) {
             is AthleteHomeUiState.Loading -> LoadingView()
-            is AthleteHomeUiState.Empty   -> EmptyView(state, onNewSession)
-            is AthleteHomeUiState.Loaded  -> LoadedView(state, onNewSession)
+            is AthleteHomeUiState.Empty   -> EmptyView(state, onNewSession, onCalibrate)
+            is AthleteHomeUiState.Loaded  -> LoadedView(state, onNewSession, onCalibrate)
         }
     }
 }
@@ -55,7 +56,7 @@ private fun LoadingView() {
 }
 
 @Composable
-private fun EmptyView(state: AthleteHomeUiState.Empty, onNewSession: () -> Unit) {
+private fun EmptyView(state: AthleteHomeUiState.Empty, onNewSession: () -> Unit, onCalibrate: () -> Unit) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -65,7 +66,7 @@ private fun EmptyView(state: AthleteHomeUiState.Empty, onNewSession: () -> Unit)
         item { Spacer(Modifier.height(8.dp)) }
         item { GreetingHeader(state.athleteFirstName, lastSessionLine = "Sin sesiones aún") }
         if (!state.mvcCalibrated) {
-            item { PendingCalibrationBanner(onCalibrate = { /* TODO: route to MVC calibration */ }) }
+            item { PendingCalibrationBanner(onCalibrate = onCalibrate) }
         }
         item { HomeEmptyState(onStartFirstSession = onNewSession) }
         item { PrimaryNewSessionButton(onClick = onNewSession, label = "Comenzar primera sesión") }
@@ -74,7 +75,7 @@ private fun EmptyView(state: AthleteHomeUiState.Empty, onNewSession: () -> Unit)
 }
 
 @Composable
-private fun LoadedView(state: AthleteHomeUiState.Loaded, onNewSession: () -> Unit) {
+private fun LoadedView(state: AthleteHomeUiState.Loaded, onNewSession: () -> Unit, onCalibrate: () -> Unit) {
     val bsaDelta = state.bsaTrend.takeIf { it.size >= 2 }?.let {
         it.last().value - it[it.size - 2].value
     }
@@ -95,7 +96,7 @@ private fun LoadedView(state: AthleteHomeUiState.Loaded, onNewSession: () -> Uni
         }
 
         if (!state.mvcCalibrated) {
-            item { PendingCalibrationBanner(onCalibrate = { /* TODO: route to MVC calibration */ }) }
+            item { PendingCalibrationBanner(onCalibrate = onCalibrate) }
         }
 
         item {

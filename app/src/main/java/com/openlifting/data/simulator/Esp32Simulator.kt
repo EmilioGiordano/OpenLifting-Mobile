@@ -85,6 +85,31 @@ class Esp32Simulator @Inject constructor() {
         }
     }
 
+    /**
+     * Simulates the captured peak %MVC of a maximum voluntary contraction for one
+     * muscle/side. Used during the calibration onboarding.
+     *
+     * MVC tests in real life rarely hit 100% — neural inhibition, technique, etc. cap
+     * actual peaks at 85-95%. We sample a peak in the 80-98% range with a small
+     * inter-side bias so the calibrated values reflect the inherent left/right
+     * asymmetry that the rest of the simulator will use later.
+     */
+    fun captureMvc(muscle: Muscle, side: MuscleSide, random: Random = Random.Default): Float {
+        val mean = 89f                  // typical achievable max
+        val sideBias = when (side) {    // small inherent asymmetry per athlete (±2%)
+            MuscleSide.LEFT  -> -1f
+            MuscleSide.RIGHT -> +1f
+        }
+        val muscleBias = when (muscle) {
+            Muscle.GLUTEUS_MAXIMUS -> -3f   // glutes typically harder to fully recruit
+            Muscle.ERECTOR_SPINAE  -> -2f
+            Muscle.BICEPS_FEMORIS  -> -4f
+            else                   ->  0f
+        }
+        val raw = mean + sideBias + muscleBias + gaussian(random, sd = 3.5f)
+        return raw.coerceIn(72f, 99f)
+    }
+
     private fun gaussian(random: Random, sd: Float): Float {
         // Box-Muller transform
         val u1 = max(1e-10, random.nextDouble()).toFloat()
