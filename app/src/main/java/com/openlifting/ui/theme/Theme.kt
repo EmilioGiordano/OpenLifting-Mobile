@@ -20,24 +20,23 @@ private val LightColors = lightColorScheme(
     primaryContainer    = LightInk,
     onPrimaryContainer  = LightBg,
 
-    // Secondary = emerald (data / status-ok accent)
+    // Secondary = emerald (data / status-ok)
     secondary             = LightEmerald,
     onSecondary           = Color.White,
     secondaryContainer    = LightEmeraldSoft,
-    onSecondaryContainer  = LightEmerald,
+    onSecondaryContainer  = LightEmeraldInk,
 
     // Tertiary = amber (warmth + warn accent — never CTA)
     tertiary             = LightAmber,
-    onTertiary           = LightInk,
+    onTertiary           = LightAmberInk,
     tertiaryContainer    = LightAmberSoft,
-    onTertiaryContainer  = LightWarn,
+    onTertiaryContainer  = LightAmberInk,
 
-    // Surfaces
     background        = LightBg,
     onBackground      = LightInk,
     surface           = LightSurface,
     onSurface         = LightInk,
-    surfaceVariant    = LightBgTint,
+    surfaceVariant    = LightSurface2,
     onSurfaceVariant  = LightInk2,
     surfaceTint       = Color.Transparent,
     inverseSurface    = LightInk,
@@ -45,20 +44,19 @@ private val LightColors = lightColorScheme(
     inversePrimary    = LightBg,
 
     // Error = risk
-    error               = LightRisk,
-    onError             = Color.White,
-    errorContainer      = LightRiskSoft,
-    onErrorContainer    = LightRisk,
+    error             = LightRisk,
+    onError           = Color.White,
+    errorContainer    = LightRiskSoft,
+    onErrorContainer  = LightRiskInk,
 
-    // Borders / dividers
-    outline             = LightInk3,
-    outlineVariant      = LightRule,
+    outline           = LightInk3,
+    outlineVariant    = LightRule,
 
     scrim = Color(0x80000000)
 )
 
 private val DarkColors = darkColorScheme(
-    // Primary = cream (CTA fill on warm dark — mirrors ink-on-light)
+    // Primary = cream (CTA on warm dark — mirrors ink-on-light)
     primary             = DarkInk,
     onPrimary           = DarkBg,
     primaryContainer    = DarkInk,
@@ -68,18 +66,17 @@ private val DarkColors = darkColorScheme(
     secondary             = DarkEmerald,
     onSecondary           = DarkBg,
     secondaryContainer    = DarkEmeraldSoft,
-    onSecondaryContainer  = DarkEmerald,
+    onSecondaryContainer  = DarkEmeraldInk,
 
-    // Tertiary = amber (warn states + accents — never CTA)
+    // Tertiary = amber accent (NOT warn — amber here is the softer #D9A878)
     tertiary             = DarkAmber,
     onTertiary           = DarkBg,
     tertiaryContainer    = DarkAmberSoft,
-    onTertiaryContainer  = DarkAmberBright,
+    onTertiaryContainer  = DarkAmberInk,
 
-    // Surfaces — leverage M3 surfaceContainer* slots for our 3 dark surface levels
     background        = DarkBg,
     onBackground      = DarkInk,
-    surface           = DarkSurface1,
+    surface           = DarkSurface,
     onSurface         = DarkInk,
     surfaceVariant    = DarkSurface2,
     onSurfaceVariant  = DarkInk2,
@@ -89,14 +86,14 @@ private val DarkColors = darkColorScheme(
     inversePrimary    = DarkBg,
 
     // Error = risk
-    error               = DarkRisk,
-    onError             = DarkBg,
-    errorContainer      = DarkRiskSoft,
-    onErrorContainer    = DarkRiskBright,
+    error             = DarkRisk,
+    onError           = DarkBg,
+    errorContainer    = DarkRiskSoft,
+    onErrorContainer  = DarkRiskInk,
 
-    // Borders / dividers
-    outline             = DarkInk3,
-    outlineVariant      = DarkRule,
+    // Outlines: outline = high-emphasis (rule-strong), outlineVariant = subtle (rule)
+    outline           = DarkRuleStrong,
+    outlineVariant    = DarkRule,
 
     scrim = Color(0xCC000000)
 )

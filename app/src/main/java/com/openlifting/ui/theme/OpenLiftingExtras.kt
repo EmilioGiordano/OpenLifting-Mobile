@@ -13,54 +13,83 @@ import androidx.compose.ui.graphics.Color
  *
  * This extra palette covers the bits that need explicit semantic naming or live alongside the
  * standard slots:
- *   - [ink3]: third-level subdued text (M3 onSurface = ink, onSurfaceVariant = ink2 — we need a 3rd)
- *   - [bgTint]: warmer background tint used in the light theme for secondary surfaces
- *   - [warn]: amber used specifically for warn states (banners, monitor-level chips)
- *   - [riskBright]: brighter risk red used in dark mode for emphasis (e.g., bilateral bars in risk)
- *   - [emeraldSoft]/[amberSoft]/[riskSoft]: tinted-bg variants — convenience aliases for
- *     M3's secondaryContainer/tertiaryContainer/errorContainer slots so callers can read
- *     the intent at the call site instead of the M3 slot name.
+ *   - [ink3]: third-level subdued text (M3 onSurface = ink, onSurfaceVariant = ink-2)
+ *   - [bgTint]: the warm bg-tint surface, between bg and surface (used for subtle nested fills)
+ *   - [rule] / [ruleStrong]: design has two divider strengths in dark mode
+ *   - [emerald] / [emeraldSoft] / [emeraldInk]: full triplet for status-ok states
+ *   - [amber] / [amberSoft] / [amberInk]: warmth accent (NOT primary CTA, NOT warn)
+ *   - [warn] / [warnSoft] / [warnInk]: explicit warn-state palette (calibration banner, monitor risk)
+ *   - [risk] / [riskSoft] / [riskInk]: full risk palette (M3's errorContainer covers riskSoft via slot)
+ *
+ * Token values are sourced from the canonical design HTML in `UI-inspiration/Openlifting-design.html`.
  */
 data class OpenLiftingExtras(
     val ink3: Color,
     val bgTint: Color,
     val rule: Color,
+    val ruleStrong: Color,
+
     val emerald: Color,
     val emeraldSoft: Color,
+    val emeraldInk: Color,
+
     val amber: Color,
     val amberSoft: Color,
+    val amberInk: Color,
+
     val warn: Color,
+    val warnSoft: Color,
+    val warnInk: Color,
+
     val risk: Color,
     val riskSoft: Color,
-    val riskBright: Color
+    val riskInk: Color
 )
 
 internal val LightExtras = OpenLiftingExtras(
     ink3        = LightInk3,
     bgTint      = LightBgTint,
     rule        = LightRule,
+    ruleStrong  = LightRule,         // light has only one rule level
+
     emerald     = LightEmerald,
     emeraldSoft = LightEmeraldSoft,
+    emeraldInk  = LightEmeraldInk,
+
     amber       = LightAmber,
     amberSoft   = LightAmberSoft,
+    amberInk    = LightAmberInk,
+
     warn        = LightWarn,
+    warnSoft    = LightWarnSoft,
+    warnInk     = LightWarnInk,
+
     risk        = LightRisk,
     riskSoft    = LightRiskSoft,
-    riskBright  = LightRisk
+    riskInk     = LightRiskInk
 )
 
 internal val DarkExtras = OpenLiftingExtras(
     ink3        = DarkInk3,
-    bgTint      = DarkSurface1,
+    bgTint      = DarkBgTint,
     rule        = DarkRule,
+    ruleStrong  = DarkRuleStrong,
+
     emerald     = DarkEmerald,
     emeraldSoft = DarkEmeraldSoft,
+    emeraldInk  = DarkEmeraldInk,
+
     amber       = DarkAmber,
     amberSoft   = DarkAmberSoft,
+    amberInk    = DarkAmberInk,
+
     warn        = DarkWarn,
+    warnSoft    = DarkWarnSoft,
+    warnInk     = DarkWarnInk,
+
     risk        = DarkRisk,
     riskSoft    = DarkRiskSoft,
-    riskBright  = DarkRiskBright
+    riskInk     = DarkRiskInk
 )
 
 internal val LocalOpenLiftingExtras = staticCompositionLocalOf { LightExtras }
