@@ -1,5 +1,6 @@
 package com.openlifting.presentation.athlete.session
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -7,12 +8,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -55,6 +58,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.openlifting.domain.model.Muscle
+import com.openlifting.domain.model.MusclePair
+import com.openlifting.domain.model.RepPhase
 import com.openlifting.domain.model.RiskLevel
 import com.openlifting.domain.model.SetMetrics
 import com.openlifting.domain.model.SquatDepth
@@ -88,7 +93,7 @@ fun SessionScreen(
                     setNumber = viewModel.currentSetNumber(),
                     onMeasure = viewModel::measureSet
                 )
-                is SessionUiState.Measuring     -> MeasuringContent()
+                is SessionUiState.MeasuringInProgress -> MeasuringInProgressContent(state)
                 is SessionUiState.AnalysisReady -> AnalysisContent(
                     state = state,
                     onNextSet = viewModel::nextSet,
@@ -323,38 +328,36 @@ private fun formatRpeValue(rpe: Float): String =
     if (rpe == rpe.toInt().toFloat()) rpe.toInt().toString()
     else "%.1f".format(rpe)
 
-// ── Measuring (~2s simulated transmission) ──────────────────────────────────
+// ── Measuring in progress (live realtime stream) ───────────────────────────
 
 @Composable
-private fun MeasuringContent() {
+private fun MeasuringInProgressContent(state: SessionUiState.MeasuringInProgress) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Spacer(Modifier.height(20.dp))
+        // Header: rep counter, timer, phase chip
+        LiveHeaderCard(state)
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.olExtras.emerald)
-            )
-            Spacer(Modifier.size(8.dp))
-            Text(
-                text  = "Simulando ESP32…",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        // Set context (load × reps + chips) — reused from analysis
+        SetHeader(
+            loadKg     = state.loadKg,
+            targetReps = state.targetReps,
+            rpe        = state.rpe,
+            variant    = state.variant,
+            depth      = state.depth
+        )
 
-        // Animated bilateral block (preview of analysis)
+        // Live bilateral block
+        Text(
+            text     = "Activación muscular en vivo",
+            style    = MaterialTheme.typography.labelLarge,
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp)
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -362,32 +365,214 @@ private fun MeasuringContent() {
                 .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Mid-flight values (illustrative). The real activations are computed at the end.
-            InlineLiveBar(label = "VL · IZQ", pct = 78f)
-            InlineLiveBar(label = "VL · DER", pct = 82f)
-            InlineLiveBar(label = "VM · IZQ", pct = 65f)
-            InlineLiveBar(label = "VM · DER", pct = 70f)
-            InlineLiveBar(label = "GMx · IZQ", pct = 45f)
-            InlineLiveBar(label = "GMx · DER", pct = 52f)
-            InlineLiveBar(label = "ES · IZQ", pct = 30f)
-            InlineLiveBar(label = "ES · DER", pct = 32f)
-            InlineLiveBar(label = "BF · IZQ", pct = 25f)
-            InlineLiveBar(label = "BF · DER", pct = 28f)
+            Muscle.entries.forEach { muscle ->
+                val live = state.liveActivations[muscle] ?: MusclePair(0f, 0f)
+                val peak = state.peaksThisRep[muscle] ?: MusclePair(0f, 0f)
+                LiveBilateralRow(muscle = muscle, live = live, peak = peak)
+            }
         }
 
-        Spacer(Modifier.weight(1f))
+        // Footer: captured reps strip
+        if (state.capturedReps.isNotEmpty()) {
+            CapturedRepsStrip(reps = state.capturedReps, totalReps = state.targetReps)
+        }
 
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                modifier   = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
-                color      = MaterialTheme.olExtras.emerald
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun LiveHeaderCard(state: SessionUiState.MeasuringInProgress) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Rep counter
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text  = "REP",
+                style = MonoText.labelSmall,
+                color = MaterialTheme.olExtras.ink3
+            )
+            Text(
+                text  = "${state.currentRep.coerceAtLeast(0)} / ${state.targetReps}",
+                style = MonoText.displaySmall,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
-        Spacer(Modifier.height(20.dp))
+
+        // Phase chip
+        PhaseChip(phase = state.phase)
+
+        // Timer
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                text  = "TIEMPO",
+                style = MonoText.labelSmall,
+                color = MaterialTheme.olExtras.ink3
+            )
+            Text(
+                text  = formatTimer(state.totalElapsedMs),
+                style = MonoText.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
+}
+
+@Composable
+private fun PhaseChip(phase: RepPhase?) {
+    val (label, fg, bg) = when (phase) {
+        RepPhase.ECCENTRIC  -> Triple("EXCÉNTRICA",  MaterialTheme.olExtras.amberInk, MaterialTheme.olExtras.amberSoft)
+        RepPhase.ISOMETRIC  -> Triple("PARADA",      MaterialTheme.olExtras.ink3,     MaterialTheme.colorScheme.surfaceVariant)
+        RepPhase.CONCENTRIC -> Triple("CONCÉNTRICA", MaterialTheme.olExtras.emerald,  MaterialTheme.olExtras.emeraldSoft)
+        null                 -> Triple("ESPERANDO",   MaterialTheme.olExtras.ink3,     MaterialTheme.colorScheme.surfaceVariant)
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(bg)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(text = label, style = MonoText.labelMedium, color = fg)
+    }
+}
+
+@Composable
+private fun LiveBilateralRow(muscle: Muscle, live: MusclePair, peak: MusclePair) {
+    val animatedL by animateFloatAsState(targetValue = live.left,  label = "${muscle.shortName}-L")
+    val animatedR by animateFloatAsState(targetValue = live.right, label = "${muscle.shortName}-R")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text  = muscle.shortName,
+            style = MonoText.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.width(40.dp)
+        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            LiveSideBar(label = "IZQ", pct = animatedL, peakPct = peak.left)
+            LiveSideBar(label = "DER", pct = animatedR, peakPct = peak.right)
+        }
+    }
+}
+
+@Composable
+private fun LiveSideBar(label: String, pct: Float, peakPct: Float) {
+    val barColor = liveBarColor(pct)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text  = label,
+            style = MonoText.labelSmall,
+            color = MaterialTheme.olExtras.ink3,
+            modifier = Modifier.width(24.dp)
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            // Bar fill
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction = (pct / 100f).coerceIn(0f, 1f))
+                    .background(barColor, RoundedCornerShape(4.dp))
+            )
+            // Peak marker (subtle vertical line at peak position)
+            if (peakPct > 1f && peakPct >= pct) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(fraction = (peakPct / 100f).coerceIn(0f, 1f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .width(2.dp)
+                            .fillMaxHeight()
+                            .background(MaterialTheme.colorScheme.onSurface)
+                    )
+                }
+            }
+        }
+        Text(
+            text  = "${pct.toInt()}%",
+            style = MonoText.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.width(36.dp)
+        )
+    }
+}
+
+@Composable
+private fun liveBarColor(pct: Float): androidx.compose.ui.graphics.Color = when {
+    pct >= 90f -> MaterialTheme.olExtras.warn       // saturating
+    pct >= 60f -> MaterialTheme.olExtras.emerald    // active
+    else       -> MaterialTheme.olExtras.emerald.copy(alpha = 0.6f)  // low/resting
+}
+
+@Composable
+private fun CapturedRepsStrip(reps: List<com.openlifting.presentation.athlete.session.RepCapture>, totalReps: Int) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text  = "CAPTURADAS",
+            style = MonoText.labelSmall,
+            color = MaterialTheme.olExtras.ink3
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            (1..totalReps).forEach { repNum ->
+                val captured = reps.any { it.repNumber == repNum }
+                RepDot(repNumber = repNum, captured = captured)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RepDot(repNumber: Int, captured: Boolean) {
+    val color = if (captured) MaterialTheme.olExtras.emerald else MaterialTheme.colorScheme.outlineVariant
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .background(if (captured) MaterialTheme.olExtras.emeraldSoft else androidx.compose.ui.graphics.Color.Transparent)
+            .border(1.dp, color, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text  = repNumber.toString(),
+            style = MonoText.labelSmall,
+            color = if (captured) MaterialTheme.olExtras.emerald else MaterialTheme.olExtras.ink3
+        )
+    }
+}
+
+private fun formatTimer(elapsedMs: Long): String {
+    val totalSec = elapsedMs / 1000L
+    val min = totalSec / 60L
+    val sec = totalSec % 60L
+    val tenths = (elapsedMs % 1000L) / 100L
+    return "%02d:%02d.%01d".format(min, sec, tenths)
 }
 
 // ── Analysis (after measurement) ────────────────────────────────────────────
