@@ -49,8 +49,10 @@ class SessionViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun build() = SessionViewModel(
-        sessionRepository, simulator, computeMetrics, userDao, setDao, sessionDao
+    private fun build(
+        savedStateHandle: androidx.lifecycle.SavedStateHandle = androidx.lifecycle.SavedStateHandle()
+    ) = SessionViewModel(
+        savedStateHandle, sessionRepository, simulator, computeMetrics, userDao, setDao, sessionDao
     )
 
     private fun set(localId: Long, setNumber: Int, loadKg: Float, targetReps: Int = 5) =

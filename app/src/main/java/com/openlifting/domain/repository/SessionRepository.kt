@@ -9,7 +9,12 @@ import com.openlifting.domain.model.TrainingSession
 import kotlinx.coroutines.flow.Flow
 
 interface SessionRepository {
-    suspend fun createSession(athleteUserId: Long): Long
+    /**
+     * Creates a new training session for the given athlete. When started by an instructor
+     * for one of their athletes (e.g., a guest), [instructorUserId] is set so the session
+     * row records who supervised it.
+     */
+    suspend fun createSession(athleteUserId: Long, instructorUserId: Long? = null): Long
     suspend fun saveSetWithDetails(
         sessionLocalId: Long,
         setNumber: Int,

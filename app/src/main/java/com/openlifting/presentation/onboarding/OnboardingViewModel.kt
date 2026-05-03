@@ -76,8 +76,16 @@ class OnboardingViewModel @Inject constructor(
     private val _mvc = MutableStateFlow(initialMvcState())
     val mvc: StateFlow<MvcCaptureUiState> = _mvc.asStateFlow()
 
-    /** Persisted profile id, available after [saveProfile] completes. */
+    /** Persisted profile id, available after [saveProfile] completes OR after [setTargetProfile]. */
     private var savedProfileId: Long = -1L
+
+    /**
+     * When set, calibration writes to this profile id (used by the instructor flow when
+     * calibrating a guest athlete). Default -1L means "use the logged-in user's profile".
+     */
+    fun setTargetProfile(profileId: Long) {
+        savedProfileId = profileId
+    }
 
     init {
         // Prefill firstName / lastName from the logged-in User if possible

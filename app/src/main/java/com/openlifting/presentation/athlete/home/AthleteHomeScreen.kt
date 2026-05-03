@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -69,7 +70,23 @@ private fun EmptyView(state: AthleteHomeUiState.Empty, onNewSession: () -> Unit,
             item { PendingCalibrationBanner(onCalibrate = onCalibrate) }
         }
         item { HomeEmptyState(onStartFirstSession = onNewSession) }
-        item { PrimaryNewSessionButton(onClick = onNewSession, label = "Comenzar primera sesión") }
+        item {
+            // Without MVC calibration, %MVC values during a session have no baseline —
+            // we block "Nueva sesión" until the athlete calibrates.
+            if (state.mvcCalibrated) {
+                PrimaryActionButton(
+                    onClick = onNewSession,
+                    label   = "Comenzar primera sesión",
+                    icon    = Icons.Filled.Add
+                )
+            } else {
+                PrimaryActionButton(
+                    onClick = onCalibrate,
+                    label   = "Calibrar MVC para empezar",
+                    icon    = Icons.Filled.Tune
+                )
+            }
+        }
         item { Spacer(Modifier.height(24.dp)) }
     }
 }
@@ -138,7 +155,21 @@ private fun LoadedView(state: AthleteHomeUiState.Loaded, onNewSession: () -> Uni
             }
         }
 
-        item { PrimaryNewSessionButton(onClick = onNewSession, label = "Nueva sesión") }
+        item {
+            if (state.mvcCalibrated) {
+                PrimaryActionButton(
+                    onClick = onNewSession,
+                    label   = "Nueva sesión",
+                    icon    = Icons.Filled.Add
+                )
+            } else {
+                PrimaryActionButton(
+                    onClick = onCalibrate,
+                    label   = "Calibrar MVC para empezar",
+                    icon    = Icons.Filled.Tune
+                )
+            }
+        }
         item { Spacer(Modifier.height(24.dp)) }
     }
 }
@@ -160,7 +191,11 @@ private fun GreetingHeader(firstName: String, lastSessionLine: String) {
 }
 
 @Composable
-private fun PrimaryNewSessionButton(onClick: () -> Unit, label: String) {
+private fun PrimaryActionButton(
+    onClick: () -> Unit,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
     Button(
         onClick  = onClick,
         modifier = Modifier
@@ -168,7 +203,7 @@ private fun PrimaryNewSessionButton(onClick: () -> Unit, label: String) {
             .height(56.dp)
     ) {
         Icon(
-            imageVector = Icons.Filled.Add,
+            imageVector = icon,
             contentDescription = null,
             modifier = Modifier
                 .height(20.dp)

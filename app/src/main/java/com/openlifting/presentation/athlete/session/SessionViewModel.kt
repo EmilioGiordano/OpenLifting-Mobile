@@ -1,5 +1,6 @@
 package com.openlifting.presentation.athlete.session
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.openlifting.data.local.dao.SessionDao
@@ -22,6 +23,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+object SessionRouteArgs {
+    /** Optional. Used when an instructor is running a session for an athlete (esp. guest). */
+    const val ATHLETE_USER_ID    = "athleteUserId"
+    /** Optional. Set alongside [ATHLETE_USER_ID] when the instructor is the supervisor. */
+    const val INSTRUCTOR_USER_ID = "instructorUserId"
+}
 
 data class MusclePair(val left: Float, val right: Float)
 
@@ -62,6 +70,7 @@ sealed interface SessionUiState {
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val simulator: Esp32Simulator,
     private val computeMetrics: ComputeSetMetrics,
@@ -76,6 +85,17 @@ class SessionViewModel @Inject constructor(
     private var sessionLocalId: Long = -1L
     private var currentSetNumber: Int = 1
 
+    /**
+     * Override athlete user id for instructor-driven sessions. When null, the session is
+     * created for whoever is currently logged in (the athlete-side flow).
+     */
+    private val explicitAthleteUserId: Long? =
+        savedStateHandle.get<Long>(SessionRouteArgs.ATHLETE_USER_ID)?.takeIf { it > 0L }
+
+    /** Set when an instructor supervises this session, paired with [explicitAthleteUserId]. */
+    private val explicitInstructorUserId: Long? =
+        savedStateHandle.get<Long>(SessionRouteArgs.INSTRUCTOR_USER_ID)?.takeIf { it > 0L }
+
     fun currentSetNumber(): Int = currentSetNumber
 
     fun measureSet(
@@ -88,11 +108,16 @@ class SessionViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = SessionUiState.Measuring
             if (sessionLocalId == -1L) {
-                val user = userDao.getLoggedInUser() ?: run {
-                    _uiState.value = SessionUiState.Error("Usuario no encontrado")
-                    return@launch
-                }
-                sessionLocalId = sessionRepository.createSession(user.id)
+                val athleteUserId = explicitAthleteUserId
+                    ?: userDao.getLoggedInUser()?.id
+                    ?: run {
+                        _uiState.value = SessionUiState.Error("Usuario no encontrado")
+                        return@launch
+                    }
+                sessionLocalId = sessionRepository.createSession(
+                    athleteUserId    = athleteUserId,
+                    instructorUserId = explicitInstructorUserId
+                )
             }
             delay(2000L)  // simulate ESP32 transmission
 

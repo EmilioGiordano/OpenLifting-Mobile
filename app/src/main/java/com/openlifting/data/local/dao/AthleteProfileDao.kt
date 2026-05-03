@@ -20,8 +20,14 @@ interface AthleteProfileDao {
     @Query("SELECT * FROM athlete_profiles WHERE userId = :userId LIMIT 1")
     suspend fun getByUserId(userId: Long): AthleteProfileEntity?
 
+    @Query("SELECT * FROM athlete_profiles WHERE id = :profileId LIMIT 1")
+    suspend fun getById(profileId: Long): AthleteProfileEntity?
+
     @Query("SELECT * FROM athlete_profiles WHERE userId = :userId LIMIT 1")
     fun observeByUserId(userId: Long): Flow<AthleteProfileEntity?>
+
+    @Query("SELECT * FROM athlete_profiles WHERE guestOfInstructorId = :instructorId ORDER BY firstName")
+    fun observeGuestsForInstructor(instructorId: Long): Flow<List<AthleteProfileEntity>>
 
     @Query("UPDATE athlete_profiles SET calibratedAt = :timestamp WHERE id = :profileId")
     suspend fun markCalibrated(profileId: Long, timestamp: Long)
