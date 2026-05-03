@@ -12,7 +12,7 @@ import com.openlifting.domain.model.RiskLevel
 import com.openlifting.domain.model.SetMetrics
 import com.openlifting.domain.model.SquatDepth
 import com.openlifting.domain.model.SquatVariant
-import com.openlifting.presentation.athlete.session.MusclePair
+import com.openlifting.domain.model.MusclePair
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
