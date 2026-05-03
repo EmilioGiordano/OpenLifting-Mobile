@@ -14,6 +14,14 @@ import javax.inject.Inject
  *
  * Input: all activations for all reps of a set, with repNumber ordering.
  * The activations list is expected to be ordered rep1..repN.
+ *
+ * Las fórmulas (BSA, H:Q, ES:GMax, fatiga intra-serie) y los thresholds de
+ * clasificación de riesgo están justificados en `docs/decisiones-tecnicas.md`
+ * §3 ("Modelo de dominio — métricas y thresholds").
+ *
+ * Las recomendaciones generadas en español ([generateRecommendations]) son
+ * heurísticas escritas en este file, no validadas por kinesiólogo. Suficientes
+ * para defensa académica; uso clínico real requiere revisión profesional.
  */
 class ComputeSetMetrics @Inject constructor() {
 

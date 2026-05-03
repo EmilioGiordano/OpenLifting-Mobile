@@ -12,11 +12,21 @@ import kotlin.random.Random
 
 /**
  * Simulates the EMG data batch that a real ESP32 would send after a set.
- * Uses parameterized Normal distributions derived from the literature
- * (Bogdanis 2019, Caterisano 2002, Yavuz 2015-2017).
  *
- * Returns %MVC values directly (simulates hardware normalization pipeline).
- * The app pipeline is identical whether data comes from here or a real ESP32.
+ * Las medias por músculo en [baseMeans] están sacadas de literatura (Bogdanis 2019,
+ * Yavuz 2017, Caterisano 2002) — son %MVC promedio durante la fase concéntrica de
+ * sentadilla a ~80% 1RM. Las distribuciones (Normal con SD=5 inter-rep + ruido=2)
+ * tienen valores realistas.
+ *
+ * Lo "engineered para el demo" (multiplicadores de carga / profundidad / variante,
+ * y la asimetría bilateral random 2-10%) son aproximaciones direccionales correctas
+ * pero sin cita peer-reviewed específica — están documentadas como tales en
+ * `docs/decisiones-tecnicas.md` §5.2.
+ *
+ * Returns %MVC values directly (simulates the hardware normalization pipeline).
+ * The app pipeline downstream is identical whether data comes from here or a real
+ * ESP32. Cuando llegue el hardware: se reemplaza esta clase por una implementación
+ * con la misma firma pública (interface `EmgDataSource` cuando se extraiga).
  */
 @Singleton
 class Esp32Simulator @Inject constructor() {
