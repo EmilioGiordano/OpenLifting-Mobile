@@ -7,10 +7,15 @@ import com.openlifting.data.local.dao.SessionDao
 import com.openlifting.data.local.dao.SetDao
 import com.openlifting.data.local.dao.UserDao
 import com.openlifting.data.local.entity.SetMetricsEntity
-import com.openlifting.data.simulator.Esp32Simulator
+import com.openlifting.data.websocket.EmgDataSourceWithFallback
+import com.openlifting.domain.datasource.EmgDataSource
+import com.openlifting.domain.datasource.StartSetRequest
+import com.openlifting.domain.model.EmgEvent
 import com.openlifting.domain.model.Muscle
+import com.openlifting.domain.model.MusclePair
 import com.openlifting.domain.model.MuscleSide
 import com.openlifting.domain.model.Recommendation
+import com.openlifting.domain.model.RepPhase
 import com.openlifting.domain.model.RiskLevel
 import com.openlifting.domain.model.SetMetrics
 import com.openlifting.domain.model.SquatDepth
@@ -18,10 +23,10 @@ import com.openlifting.domain.model.SquatVariant
 import com.openlifting.domain.repository.SessionRepository
 import com.openlifting.domain.usecase.metrics.ComputeSetMetrics
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 object SessionRouteArgs {
@@ -31,8 +36,6 @@ object SessionRouteArgs {
     const val INSTRUCTOR_USER_ID = "instructorUserId"
 }
 
-data class MusclePair(val left: Float, val right: Float)
-
 data class SetRecapItem(
     val setNumber: Int,
     val loadKg: Float,
@@ -41,9 +44,45 @@ data class SetRecapItem(
     val overallRisk: RiskLevel
 )
 
+/** A captured rep during the streaming flow — used in the live UI strip. */
+data class RepCapture(
+    val repNumber: Int,
+    val totalDurationMs: Long
+)
+
+/** A point in the realtime chart history (averaged L/R per muscle). */
+data class ChartPoint(
+    val timestampMs: Long,
+    val muscleAvgPct: Map<Muscle, Float>
+)
+
 sealed interface SessionUiState {
     data object MetadataEntry : SessionUiState
-    data object Measuring : SessionUiState
+
+/**
+     * Live measurement state. Updated as [EmgEvent]s arrive from the [EmgDataSource].
+     * The UI consumes this to render header (rep counter + timer + phase chip), the live
+     * bilateral bars per muscle, the realtime chart, and the captured-reps strip.
+     */
+    data class MeasuringInProgress(
+        val setNumber: Int,
+        val loadKg: Float,
+        val targetReps: Int,
+        val variant: SquatVariant,
+        val depth: SquatDepth,
+        val rpe: Float,
+        val currentRep: Int,                              // 1..targetReps once first PhaseStarted; 0 before
+        val phase: RepPhase?,                              // null until first PhaseStarted
+        val totalElapsedMs: Long,
+        val phaseElapsedMs: Long,
+        val liveActivations: Map<Muscle, MusclePair>,
+        val peaksThisRep: Map<Muscle, MusclePair>,
+        val chartHistory: List<ChartPoint>,
+        val capturedReps: List<RepCapture>,
+        val fallbackUsed: Boolean = false,                // true if WS failed and simulator is being used
+        val fallbackMessage: String = ""                  // message explaining why fallback was used
+    ) : SessionUiState
+
     data class AnalysisReady(
         val setNumber: Int,
         val loadKg: Float,
@@ -72,7 +111,7 @@ sealed interface SessionUiState {
 class SessionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
-    private val simulator: Esp32Simulator,
+    private val emgDataSource: EmgDataSource,
     private val computeMetrics: ComputeSetMetrics,
     private val userDao: UserDao,
     private val setDao: SetDao,
@@ -106,7 +145,40 @@ class SessionViewModel @Inject constructor(
         rpe: Float
     ) {
         viewModelScope.launch {
-            _uiState.value = SessionUiState.Measuring
+            // Initialize the live state immediately so the UI can transition.
+            _uiState.value = SessionUiState.MeasuringInProgress(
+                setNumber       = currentSetNumber,
+                loadKg          = loadKg,
+                targetReps      = targetReps,
+                variant         = variant,
+                depth           = depth,
+                rpe             = rpe,
+                currentRep      = 0,
+                phase           = null,
+                totalElapsedMs  = 0L,
+                phaseElapsedMs  = 0L,
+                liveActivations = emptyMap(),
+                peaksThisRep    = emptyMap(),
+                chartHistory    = emptyList(),
+                capturedReps    = emptyList(),
+                fallbackUsed    = false,
+                fallbackMessage = ""
+            )
+
+            // Background check for fallback - update UI after 2.5s if WS didn't connect
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(2_500)
+                val current = _uiState.value
+                val fallback = emgDataSource as? EmgDataSourceWithFallback
+                if (current is SessionUiState.MeasuringInProgress && fallback?.fallbackUsed() == true) {
+                    _uiState.value = current.copy(
+                        fallbackUsed = true,
+                        fallbackMessage = fallback.fallbackMessage()
+                    )
+                }
+            }
+
+            // Ensure the session row exists before the first set.
             if (sessionLocalId == -1L) {
                 val athleteUserId = explicitAthleteUserId
                     ?: userDao.getLoggedInUser()?.id
@@ -119,36 +191,107 @@ class SessionViewModel @Inject constructor(
                     instructorUserId = explicitInstructorUserId
                 )
             }
-            delay(2000L)  // simulate ESP32 transmission
 
-            val activationsByRep = simulator.simulateSet(
-                loadKg = loadKg,
-                targetReps = targetReps,
-                variant = variant,
-                depth = depth
+            // Stream events and update state per event. SetComplete carries the final
+            // activations payload that ComputeSetMetrics expects.
+            val request = StartSetRequest(
+                setRequestId = "set-${UUID.randomUUID()}",
+                loadKg       = loadKg,
+                targetReps   = targetReps,
+                variant      = variant,
+                depth        = depth,
+                rpe          = rpe,
+                athleteId    = explicitAthleteUserId?.toString()
             )
 
-            val result = computeMetrics(setLocalId = 0L, activationsByRep = activationsByRep)
+            val startedAtMs = System.currentTimeMillis()
+            var capturedActivations: List<List<com.openlifting.domain.model.MuscleActivation>> = emptyList()
+            var streamFailed = false
+            var failureMessage = ""
 
+            emgDataSource.streamSet(request).collect { event ->
+                val current = _uiState.value as? SessionUiState.MeasuringInProgress ?: return@collect
+
+                when (event) {
+                    is EmgEvent.SetStarted -> {
+                        // Initial state already set above; nothing else to do.
+                    }
+                    is EmgEvent.PhaseStarted -> {
+                        val isNewRep = event.rep != current.currentRep
+                        _uiState.value = current.copy(
+                            currentRep      = event.rep,
+                            phase           = event.phase,
+                            phaseElapsedMs  = 0L,
+                            peaksThisRep    = if (isNewRep) emptyMap() else current.peaksThisRep
+                        )
+                    }
+                    is EmgEvent.Snapshot -> {
+                        val newPeaks = updatePeaks(current.peaksThisRep, event.muscles)
+                        val newChart = appendChartPoint(
+                            history       = current.chartHistory,
+                            timestampMs   = System.currentTimeMillis() - startedAtMs,
+                            muscles       = event.muscles
+                        )
+                        _uiState.value = current.copy(
+                            phase           = event.phase,
+                            phaseElapsedMs  = event.elapsedPhaseMs,
+                            totalElapsedMs  = System.currentTimeMillis() - startedAtMs,
+                            liveActivations = event.muscles,
+                            peaksThisRep    = newPeaks,
+                            chartHistory    = newChart
+                        )
+                    }
+                    is EmgEvent.PhaseComplete -> {
+                        // Lock peaks of the just-finished phase visually.
+                        _uiState.value = current.copy(peaksThisRep = event.musclesPeak)
+                    }
+                    is EmgEvent.RepComplete -> {
+                        _uiState.value = current.copy(
+                            capturedReps = current.capturedReps + RepCapture(
+                                repNumber       = event.rep,
+                                totalDurationMs = event.totalDurationMs
+                            ),
+                            peaksThisRep = emptyMap()
+                        )
+                    }
+                    is EmgEvent.SetComplete -> {
+                        capturedActivations = event.activationsByRep
+                    }
+                    is EmgEvent.Error -> {
+                        streamFailed   = true
+                        failureMessage = event.message
+                    }
+                }
+            }
+
+            if (streamFailed || capturedActivations.isEmpty()) {
+                _uiState.value = SessionUiState.Error(
+                    if (streamFailed) failureMessage else "No se recibieron datos del sensor"
+                )
+                return@launch
+            }
+
+            // Existing analysis pipeline — unchanged from the bulk path.
+            val result = computeMetrics(setLocalId = 0L, activationsByRep = capturedActivations)
             val setLocalId = sessionRepository.saveSetWithDetails(
-                sessionLocalId = sessionLocalId,
-                setNumber      = currentSetNumber,
-                loadKg         = loadKg,
-                targetReps     = targetReps,
-                variant        = variant,
-                depth          = depth,
-                rpe            = rpe,
-                activationsByRep = activationsByRep,
-                metrics        = result.metrics,
-                recommendations = result.recommendations
+                sessionLocalId   = sessionLocalId,
+                setNumber        = currentSetNumber,
+                loadKg           = loadKg,
+                targetReps       = targetReps,
+                variant          = variant,
+                depth            = depth,
+                rpe              = rpe,
+                activationsByRep = capturedActivations,
+                metrics          = result.metrics,
+                recommendations  = result.recommendations
             )
 
             val summaryMap = buildMap {
                 Muscle.entries.forEach { muscle ->
-                    val leftAvg = activationsByRep.flatten()
+                    val leftAvg = capturedActivations.flatten()
                         .filter { it.muscle == muscle && it.side == MuscleSide.LEFT }
                         .map { it.percentMvc }.average().toFloat()
-                    val rightAvg = activationsByRep.flatten()
+                    val rightAvg = capturedActivations.flatten()
                         .filter { it.muscle == muscle && it.side == MuscleSide.RIGHT }
                         .map { it.percentMvc }.average().toFloat()
                     put(muscle, MusclePair(leftAvg, rightAvg))
@@ -255,6 +398,36 @@ class SessionViewModel @Inject constructor(
         _uiState.value = SessionUiState.MetadataEntry
     }
 
+    // ── Live-state helpers ──────────────────────────────────────────────────
+
+    private fun updatePeaks(
+        existing: Map<Muscle, MusclePair>,
+        latest: Map<Muscle, MusclePair>
+    ): Map<Muscle, MusclePair> {
+        return Muscle.entries.associateWith { muscle ->
+            val prev = existing[muscle] ?: MusclePair(0f, 0f)
+            val next = latest[muscle] ?: prev
+            MusclePair(
+                left  = maxOf(prev.left, next.left),
+                right = maxOf(prev.right, next.right)
+            )
+        }
+    }
+
+    private fun appendChartPoint(
+        history: List<ChartPoint>,
+        timestampMs: Long,
+        muscles: Map<Muscle, MusclePair>
+    ): List<ChartPoint> {
+        val point = ChartPoint(
+            timestampMs   = timestampMs,
+            muscleAvgPct  = muscles.mapValues { (_, pair) -> pair.avg }
+        )
+        // Keep only the last ~5 seconds (snapshots come at 20Hz → ~100 points).
+        val cutoff = timestampMs - CHART_WINDOW_MS
+        return (history + point).filter { it.timestampMs >= cutoff }
+    }
+
     // ── risk helpers (mirror domain thresholds) ─────────────────────────────
 
     private fun computeOverallRisk(m: SetMetricsEntity): RiskLevel {
@@ -276,5 +449,9 @@ class SessionViewModel @Inject constructor(
     }
     private fun hqRisk(v: Float): RiskLevel = when {
         v < 0.45f -> RiskLevel.RISK; v < 0.60f -> RiskLevel.MONITOR; else -> RiskLevel.NORMAL
+    }
+
+    private companion object {
+        const val CHART_WINDOW_MS = 5_000L
     }
 }

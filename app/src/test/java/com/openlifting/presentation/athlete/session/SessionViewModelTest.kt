@@ -8,7 +8,9 @@ import com.openlifting.data.local.entity.RecommendationEntity
 import com.openlifting.data.local.entity.SetMetricsEntity
 import com.openlifting.data.local.entity.TrainingSessionEntity
 import com.openlifting.data.local.entity.TrainingSetEntity
-import com.openlifting.data.simulator.Esp32Simulator
+import com.openlifting.domain.datasource.EmgDataSource
+import com.openlifting.domain.model.EmgEvent
+import com.openlifting.domain.model.MuscleActivation
 import com.openlifting.domain.model.RiskLevel
 import com.openlifting.domain.repository.SessionRepository
 import com.openlifting.domain.usecase.metrics.ComputeSetMetrics
@@ -18,6 +20,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -33,7 +36,7 @@ import org.junit.Test
 class SessionViewModelTest {
 
     private val sessionRepository = mockk<SessionRepository>(relaxed = true)
-    private val simulator         = mockk<Esp32Simulator>()
+    private val emgDataSource     = mockk<EmgDataSource>()
     private val computeMetrics    = mockk<ComputeSetMetrics>()
     private val userDao           = mockk<UserDao>()
     private val setDao            = mockk<SetDao>()
@@ -52,7 +55,7 @@ class SessionViewModelTest {
     private fun build(
         savedStateHandle: androidx.lifecycle.SavedStateHandle = androidx.lifecycle.SavedStateHandle()
     ) = SessionViewModel(
-        savedStateHandle, sessionRepository, simulator, computeMetrics, userDao, setDao, sessionDao
+        savedStateHandle, sessionRepository, emgDataSource, computeMetrics, userDao, setDao, sessionDao
     )
 
     private fun set(localId: Long, setNumber: Int, loadKg: Float, targetReps: Int = 5) =
@@ -68,6 +71,23 @@ class SessionViewModelTest {
             bsaVlPct = bsaVl, bsaVmPct = bsaVm, bsaGmaxPct = bsaGmax, bsaEsPct = bsaEs,
             esGmaxRatio = 1.3f, hqRatio = 0.65f, intraSetFatigueRatio = 1.05f
         )
+
+    /**
+     * Returns a stream that emits a single SetComplete event with the given activations,
+     * skipping the live phase events. Sufficient for tests that exercise the post-stream
+     * persistence pipeline.
+     */
+    private fun stubSetCompleteFlow(
+        setId: String,
+        targetReps: Int,
+        activationsByRep: List<List<MuscleActivation>> = emptyList()
+    ) = flowOf<EmgEvent>(
+        EmgEvent.SetComplete(
+            setId             = setId,
+            totalReps         = targetReps,
+            activationsByRep  = activationsByRep
+        )
+    )
 
     @Test
     fun `finalizeSession with no started session invokes onSkipped without writing to repo`() = runTest {
@@ -93,22 +113,19 @@ class SessionViewModelTest {
 
     @Test
     fun `finalizeSession aggregates totals and overall risk across sets`() = runTest {
-        // Force the VM to think there is an active session by simulating a measurement first.
-        // We bypass measureSet (which would require simulator/computeMetrics mocks) by going
-        // straight through the public API: there is no setter for sessionLocalId, so we
-        // exercise this through the real flow with minimal mocks.
-        // Instead, we just call finalizeSession after setting up the data; since the VM
-        // checks sessionLocalId == -1L and skips, this test would fail. To keep the test
-        // focused on aggregation logic, we drive the same code path by inspecting the
-        // emitted summary state when measureSet is run end-to-end with mocks.
-
         // Mocks for measureSet
         val user = com.openlifting.data.local.entity.UserEntity(
             id = 1L, email = "x@x.com", name = "Emilio", role = "ATHLETE"
         )
         coEvery { userDao.getLoggedInUser() } returns user
-        coEvery { sessionRepository.createSession(user.id) } returns 1L
-        every { simulator.simulateSet(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { sessionRepository.createSession(any(), any()) } returns 1L
+        // Stub the EMG stream to emit a single SetComplete carrying empty activations.
+        // (SetComplete is the only event the persistence pipeline cares about; live events
+        // only drive UI updates that are not exercised here.)
+        every { emgDataSource.streamSet(any()) } answers {
+            val req = arg<com.openlifting.domain.datasource.StartSetRequest>(0)
+            stubSetCompleteFlow(req.setRequestId, req.targetReps)
+        }
         coEvery { computeMetrics(any(), any()) } returns
             ComputeSetMetrics.Result(
                 metrics = com.openlifting.domain.model.SetMetrics(
@@ -185,8 +202,11 @@ class SessionViewModelTest {
             id = 1L, email = "x@x.com", name = "Emilio", role = "ATHLETE"
         )
         coEvery { userDao.getLoggedInUser() } returns user
-        coEvery { sessionRepository.createSession(user.id) } returns 1L
-        every { simulator.simulateSet(any(), any(), any(), any(), any(), any()) } returns emptyList()
+        coEvery { sessionRepository.createSession(any(), any()) } returns 1L
+        every { emgDataSource.streamSet(any()) } answers {
+            val req = arg<com.openlifting.domain.datasource.StartSetRequest>(0)
+            stubSetCompleteFlow(req.setRequestId, req.targetReps)
+        }
         coEvery { computeMetrics(any(), any()) } returns
             ComputeSetMetrics.Result(
                 metrics = com.openlifting.domain.model.SetMetrics(

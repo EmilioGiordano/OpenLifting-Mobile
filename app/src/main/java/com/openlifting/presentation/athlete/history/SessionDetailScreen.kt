@@ -50,7 +50,7 @@ import com.openlifting.domain.model.RiskLevel
 import com.openlifting.domain.model.SetMetrics
 import com.openlifting.presentation.athlete.session.BilateralRow
 import com.openlifting.presentation.athlete.session.MetricCard
-import com.openlifting.presentation.athlete.session.MusclePair
+import com.openlifting.domain.model.MusclePair
 import com.openlifting.presentation.athlete.session.RecommendationCard
 import com.openlifting.presentation.athlete.session.SetHeader
 import com.openlifting.presentation.common.RiskBadge

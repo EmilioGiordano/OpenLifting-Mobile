@@ -79,6 +79,7 @@ Al terminar el set: transición a la pantalla de Analysis ya existente, sin camb
   "target_reps": 5,
   "variant": "LOW_BAR",
   "depth": "PARALLEL",
+  "rpe": 7.0,
   "athlete_id": "user-123"
 }
 ```
@@ -90,6 +91,10 @@ Campos:
 - `target_reps` (int, requerido): cantidad de repeticiones esperadas.
 - `variant` (string, requerido): `"LOW_BAR"` | `"HIGH_BAR"`.
 - `depth` (string, requerido): `"ABOVE_PARALLEL"` | `"PARALLEL"` | `"BELOW_PARALLEL"`.
+- `rpe` (float, opcional): Rate of Perceived Exertion 1-10. Usado por el servidor para
+  escalar la velocidad de las repeticiones (RPE más alto → reps más lentas porque la
+  concéntrica grindea, la excéntrica es más controlada). Si no se provee, el servidor
+  usa el factor de velocidad base (RPE 7 equivalente).
 - `athlete_id` (string, opcional): identificador del atleta para contexto.
 
 ### 3.3 Server → Client (stream de eventos)
@@ -106,9 +111,13 @@ Emitido inmediatamente al recibir `start_set`.
   "set_id": "client-uuid-v4",
   "timestamp_ms": 1729123456789,
   "target_reps": 5,
-  "load_kg": 100.0
+  "load_kg": 100.0,
+  "rpe": 7.0
 }
 ```
+
+`rpe` se incluye si vino en el `start_set`. Sirve como confirmación de que el servidor lo
+recibió y va a aplicarlo al timing de las fases.
 
 #### 3.3.2 `phase_started`
 
@@ -243,13 +252,30 @@ Emitido si algo sale mal del lado del servidor.
 
 ### 3.4 Tiempos esperados
 
-Para una rep "normal" (configurable en el server):
-- **Excéntrica**: 1.5-2.0s
-- **Isométrica (parada abajo)**: 0.2-0.4s
-- **Concéntrica**: 1.0-1.5s
-- **Recuperación entre reps**: 0.8-1.2s (entre rep N `rep_complete` y rep N+1 `phase_started`)
+**Base durations (referencia RPE 7, "set de trabajo moderado")**:
+- **Excéntrica**: 2.2s
+- **Isométrica (parada abajo)**: 0.45s
+- **Concéntrica**: 1.5s
+- **Recuperación entre reps**: 1.1s
 
-Total por rep: ~3-4s. Para un set de 5 reps: ~16-20s.
+Total por rep: ~5.2s. Set de 5 reps: ~26s.
+
+**Escalado por RPE (factor de velocidad)**: cada ±1 RPE desde 7 cambia ±0.15 el factor.
+Aplicado a las 4 duraciones (las 3 fases + el rest entre reps):
+
+| RPE | Factor | Por rep | Set de 5 reps |
+|-----|--------|---------|---------------|
+| 5   | 0.70   | ~3.7s   | ~18s          |
+| 6   | 0.85   | ~4.4s   | ~22s          |
+| 7   | 1.00   | ~5.2s   | ~26s          |
+| 8   | 1.15   | ~6.0s   | ~30s          |
+| 9   | 1.30   | ~6.7s   | ~34s          |
+| 10  | 1.45   | ~7.5s   | ~38s          |
+
+Si el cliente no provee RPE en `start_set`, usar factor 1.0 (RPE 7 equivalente).
+
+Variabilidad: se puede agregar ±10% de jitter por rep para que no se vea robótico —
+no es obligatorio para el MVP.
 
 ### 3.5 Frecuencia de snapshots
 
