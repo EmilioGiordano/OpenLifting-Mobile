@@ -7,6 +7,7 @@ import com.openlifting.data.local.dao.SessionDao
 import com.openlifting.data.local.dao.SetDao
 import com.openlifting.data.local.dao.UserDao
 import com.openlifting.data.local.entity.SetMetricsEntity
+import com.openlifting.data.websocket.EmgDataSourceWithFallback
 import com.openlifting.domain.datasource.EmgDataSource
 import com.openlifting.domain.datasource.StartSetRequest
 import com.openlifting.domain.model.EmgEvent
@@ -58,7 +59,7 @@ data class ChartPoint(
 sealed interface SessionUiState {
     data object MetadataEntry : SessionUiState
 
-    /**
+/**
      * Live measurement state. Updated as [EmgEvent]s arrive from the [EmgDataSource].
      * The UI consumes this to render header (rep counter + timer + phase chip), the live
      * bilateral bars per muscle, the realtime chart, and the captured-reps strip.
@@ -77,7 +78,9 @@ sealed interface SessionUiState {
         val liveActivations: Map<Muscle, MusclePair>,
         val peaksThisRep: Map<Muscle, MusclePair>,
         val chartHistory: List<ChartPoint>,
-        val capturedReps: List<RepCapture>
+        val capturedReps: List<RepCapture>,
+        val fallbackUsed: Boolean = false,                // true if WS failed and simulator is being used
+        val fallbackMessage: String = ""                  // message explaining why fallback was used
     ) : SessionUiState
 
     data class AnalysisReady(
@@ -157,8 +160,23 @@ class SessionViewModel @Inject constructor(
                 liveActivations = emptyMap(),
                 peaksThisRep    = emptyMap(),
                 chartHistory    = emptyList(),
-                capturedReps    = emptyList()
+                capturedReps    = emptyList(),
+                fallbackUsed    = false,
+                fallbackMessage = ""
             )
+
+            // Background check for fallback - update UI after 2.5s if WS didn't connect
+            viewModelScope.launch {
+                kotlinx.coroutines.delay(2_500)
+                val current = _uiState.value
+                val fallback = emgDataSource as? EmgDataSourceWithFallback
+                if (current is SessionUiState.MeasuringInProgress && fallback?.fallbackUsed() == true) {
+                    _uiState.value = current.copy(
+                        fallbackUsed = true,
+                        fallbackMessage = fallback.fallbackMessage()
+                    )
+                }
+            }
 
             // Ensure the session row exists before the first set.
             if (sessionLocalId == -1L) {

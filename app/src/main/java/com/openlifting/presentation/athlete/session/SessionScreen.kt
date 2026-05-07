@@ -339,6 +339,11 @@ private fun MeasuringInProgressContent(state: SessionUiState.MeasuringInProgress
             .padding(horizontal = 24.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // Fallback banner (shown when WS failed and simulator is being used)
+        if (state.fallbackUsed) {
+            FallbackBanner(message = state.fallbackMessage)
+        }
+
         // Header: rep counter, timer, phase chip
         LiveHeaderCard(state)
 
@@ -573,6 +578,35 @@ private fun formatTimer(elapsedMs: Long): String {
     val sec = totalSec % 60L
     val tenths = (elapsedMs % 1000L) / 100L
     return "%02d:%02d.%01d".format(min, sec, tenths)
+}
+
+@Composable
+private fun FallbackBanner(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.olExtras.amberSoft)
+            .border(1.dp, MaterialTheme.olExtras.amber, RoundedCornerShape(8.dp))
+            .padding(12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Bolt,
+                contentDescription = null,
+                tint = MaterialTheme.olExtras.warn,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text  = message.ifEmpty { "Sin conexión al sensor — usando simulación" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.olExtras.warn
+            )
+        }
+    }
 }
 
 // ── Analysis (after measurement) ────────────────────────────────────────────
