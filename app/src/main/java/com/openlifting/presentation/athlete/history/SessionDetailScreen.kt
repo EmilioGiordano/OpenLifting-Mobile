@@ -45,13 +45,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.openlifting.domain.model.Muscle
 import com.openlifting.domain.model.RiskLevel
-import com.openlifting.domain.model.SetMetrics
 import com.openlifting.presentation.athlete.session.ActivationChartCard
+import com.openlifting.presentation.athlete.session.ChipPill
 import com.openlifting.presentation.athlete.session.MetricCard
 import com.openlifting.presentation.athlete.session.RecommendationCard
-import com.openlifting.presentation.athlete.session.SetHeader
 import com.openlifting.presentation.common.RiskBadge
 import com.openlifting.presentation.common.toColor
 import com.openlifting.presentation.common.toSoftColor
@@ -248,7 +246,7 @@ private fun CollapsibleSetCard(
                 .fillMaxWidth()
                 .clickable(onClick = onToggle)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Set number circle
@@ -266,18 +264,18 @@ private fun CollapsibleSetCard(
                 )
             }
 
-            // Title + subtitle
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            // Title + chips
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(
                     text  = "${item.loadKg.toInt()} kg × ${item.targetReps}",
                     style = MonoText.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Text(
-                    text  = "RPE ${formatRpe(item.rpe)} · BSA ${"%.1f".format(item.metrics.bsaWorstPct)}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.olExtras.ink3
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ChipPill("RPE ${formatRpe(item.rpe)}")
+                    ChipPill(item.variant.displayName)
+                    ChipPill(item.depth.displayName)
+                }
             }
 
             // BSA chip
@@ -319,15 +317,6 @@ private fun ExpandedContent(item: SetExpandedItem) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        SetHeader(
-            loadKg     = item.loadKg,
-            targetReps = item.targetReps,
-            rpe        = item.rpe,
-            variant    = item.variant,
-            depth      = item.depth
-        )
-
-        // Activation chart (rep-by-rep, General / Bilateral toggle)
         ActivationChartCard(repActivations = item.repActivations)
 
         // Metric cards 2x2
@@ -375,14 +364,6 @@ private fun ExpandedContent(item: SetExpandedItem) {
             item.recommendations.forEach { rec -> RecommendationCard(rec) }
         }
     }
-}
-
-private fun bsaForMuscle(m: SetMetrics, muscle: Muscle): Pair<Float, RiskLevel> = when (muscle) {
-    Muscle.VASTUS_LATERALIS -> m.bsaVlPct  to m.vlRisk
-    Muscle.VASTUS_MEDIALIS  -> m.bsaVmPct  to m.vmRisk
-    Muscle.GLUTEUS_MAXIMUS  -> m.bsaGmaxPct to m.gmaxRisk
-    Muscle.ERECTOR_SPINAE   -> m.bsaEsPct  to m.esRisk
-    Muscle.BICEPS_FEMORIS   -> 0f to RiskLevel.NORMAL  // BSA not tracked for BF
 }
 
 private fun formatRpe(rpe: Float): String =

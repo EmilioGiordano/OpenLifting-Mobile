@@ -81,7 +81,7 @@ fun SetHeader(
 }
 
 @Composable
-private fun ChipPill(text: String) {
+internal fun ChipPill(text: String) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))

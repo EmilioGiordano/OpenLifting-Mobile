@@ -61,7 +61,6 @@ import com.openlifting.domain.model.Muscle
 import com.openlifting.domain.model.MusclePair
 import com.openlifting.domain.model.RepPhase
 import com.openlifting.domain.model.RiskLevel
-import com.openlifting.domain.model.SetMetrics
 import com.openlifting.domain.model.SquatDepth
 import com.openlifting.domain.model.SquatVariant
 import com.openlifting.presentation.common.RiskBadge
@@ -84,7 +83,10 @@ fun SessionScreen(
                     else -> "Serie ${viewModel.currentSetNumber()}"
                 },
                 showFinishAction = uiState is SessionUiState.MetadataEntry,
-                onBack   = { viewModel.finalizeSession(onFinish) },
+                onBack = {
+                    val handled = uiState is SessionUiState.MetadataEntry && viewModel.backFromMetadata()
+                    if (!handled) viewModel.finalizeSession(onFinish)
+                },
                 onFinish = { viewModel.finalizeSession(onFinish) }
             )
 
@@ -635,26 +637,7 @@ private fun AnalysisContent(
             )
         }
 
-        // Bilateral block
-        item {
-            Text(
-                text  = "Activación muscular (%MVC)",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp)
-            )
-        }
-        items(Muscle.entries) { muscle ->
-            val pair = state.activations[muscle] ?: MusclePair(0f, 0f)
-            val (bsa, risk) = bsaForMuscle(state.metrics, muscle)
-            BilateralRow(
-                muscle    = muscle,
-                leftPct   = pair.left,
-                rightPct  = pair.right,
-                bsaPct    = bsa,
-                risk      = risk
-            )
-        }
+        item { ActivationChartCard(repActivations = state.repActivations) }
 
         // Metric cards 2x2
         item {
@@ -732,14 +715,6 @@ private fun AnalysisContent(
             Spacer(Modifier.height(20.dp))
         }
     }
-}
-
-private fun bsaForMuscle(m: SetMetrics, muscle: Muscle): Pair<Float, RiskLevel> = when (muscle) {
-    Muscle.VASTUS_LATERALIS -> m.bsaVlPct to m.vlRisk
-    Muscle.VASTUS_MEDIALIS  -> m.bsaVmPct to m.vmRisk
-    Muscle.GLUTEUS_MAXIMUS  -> m.bsaGmaxPct to m.gmaxRisk
-    Muscle.ERECTOR_SPINAE   -> m.bsaEsPct  to m.esRisk
-    Muscle.BICEPS_FEMORIS   -> 0f to RiskLevel.NORMAL  // no BSA tracked for BF directly
 }
 
 // ── Session Summary ─────────────────────────────────────────────────────────

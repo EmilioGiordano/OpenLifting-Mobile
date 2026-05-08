@@ -92,7 +92,8 @@ sealed interface SessionUiState {
         val depth: SquatDepth,
         val metrics: SetMetrics,
         val recommendations: List<Recommendation>,
-        val activations: Map<Muscle, MusclePair>
+        val activations: Map<Muscle, MusclePair>,
+        val repActivations: List<Map<Muscle, MusclePair>>
     ) : SessionUiState
     data class SessionSummary(
         val sessionId: Long,
@@ -123,6 +124,7 @@ class SessionViewModel @Inject constructor(
 
     private var sessionLocalId: Long = -1L
     private var currentSetNumber: Int = 1
+    private var lastCompletedAnalysis: SessionUiState.AnalysisReady? = null
 
     /**
      * Override athlete user id for instructor-driven sessions. When null, the session is
@@ -298,6 +300,14 @@ class SessionViewModel @Inject constructor(
                 }
             }
 
+            val repActivations = capturedActivations.map { repList ->
+                Muscle.entries.associateWith { muscle ->
+                    val left  = repList.firstOrNull { it.muscle == muscle && it.side == MuscleSide.LEFT  }?.percentMvc ?: 0f
+                    val right = repList.firstOrNull { it.muscle == muscle && it.side == MuscleSide.RIGHT }?.percentMvc ?: 0f
+                    MusclePair(left, right)
+                }
+            }
+
             _uiState.value = SessionUiState.AnalysisReady(
                 setNumber       = currentSetNumber,
                 loadKg          = loadKg,
@@ -307,13 +317,23 @@ class SessionViewModel @Inject constructor(
                 depth           = depth,
                 metrics         = result.metrics.copy(setLocalId = setLocalId),
                 recommendations = result.recommendations,
-                activations     = summaryMap
+                activations     = summaryMap,
+                repActivations  = repActivations
             )
             currentSetNumber++
         }
     }
 
-    fun nextSet() { _uiState.value = SessionUiState.MetadataEntry }
+    fun nextSet() {
+        lastCompletedAnalysis = _uiState.value as? SessionUiState.AnalysisReady
+        _uiState.value = SessionUiState.MetadataEntry
+    }
+
+    fun backFromMetadata(): Boolean {
+        val prev = lastCompletedAnalysis ?: return false
+        _uiState.value = prev
+        return true
+    }
 
     /**
      * Ends the active session (writes endedAt) and transitions the UI to the [SessionSummary]
@@ -395,6 +415,7 @@ class SessionViewModel @Inject constructor(
     private fun resetState() {
         sessionLocalId = -1L
         currentSetNumber = 1
+        lastCompletedAnalysis = null
         _uiState.value = SessionUiState.MetadataEntry
     }
 
