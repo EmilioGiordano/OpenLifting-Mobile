@@ -1,5 +1,6 @@
 package com.openlifting.presentation.athlete.session
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,8 +45,10 @@ import com.openlifting.domain.model.MusclePair
 import com.openlifting.ui.theme.MonoText
 import com.openlifting.ui.theme.olExtras
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.cartesianLayerPadding
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
@@ -50,9 +56,12 @@ import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 
 // Colores V-D: sin rojo en las líneas de músculo
@@ -69,6 +78,8 @@ private val colorDer = Color(0xFF4A90C4)
 
 private val muscleOrder = Muscle.entries
 
+private val repFormatter = CartesianValueFormatter { _, value, _ -> "R${value.toInt()}" }
+
 @Composable
 fun ActivationChartCard(
     repActivations: List<Map<Muscle, MusclePair>>,
@@ -81,7 +92,13 @@ fun ActivationChartCard(
 
     val modelProducer = remember { CartesianChartModelProducer() }
 
-    // Rebuild chart data whenever mode or muscle selection changes
+    // Compute Y ceiling: max value across all reps and muscles, +20% headroom, rounded up to 10
+    val allValues = repActivations.flatMap { map ->
+        map.values.flatMap { listOf(it.left, it.right) }
+    }
+    val dataMax = allValues.maxOrNull() ?: 80f
+    val yMax = (ceil(dataMax * 1.25f / 10f) * 10f).toDouble()
+
     LaunchedEffect(mode, muscleIdx, repActivations) {
         modelProducer.runTransaction {
             if (mode == "general") {
@@ -129,12 +146,12 @@ fun ActivationChartCard(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
-                    text  = "ACTIVACIÓN",
+                    text  = "ACTIVACIÓN MUSCULAR",
                     style = MonoText.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.08.sp),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text  = "${repActivations.size} reps · %MVC prom.",
+                    text  = "${repActivations.size} reps · eje Y = %MVC · eje X = repetición",
                     style = MonoText.labelSmall,
                     color = MaterialTheme.olExtras.ink3
                 )
@@ -146,6 +163,8 @@ fun ActivationChartCard(
         val lineColors = if (mode == "general") muscleOrder.map { muscleColors[it]!! }
                          else listOf(colorIzq, colorDer)
 
+        val labelColor = MaterialTheme.colorScheme.onSurface
+
         CartesianChartHost(
             chart = rememberCartesianChart(
                 rememberLineCartesianLayer(
@@ -156,18 +175,24 @@ fun ActivationChartCard(
                                 stroke = LineCartesianLayer.LineStroke.Continuous(thicknessDp = 2f),
                             )
                         }
-                    )
+                    ),
+                    rangeProvider = CartesianLayerRangeProvider.fixed(minY = 0.0, maxY = yMax)
                 ),
-                startAxis  = VerticalAxis.rememberStart(
+                startAxis = VerticalAxis.rememberStart(
+                    label = rememberAxisLabelComponent(color = labelColor),
                     itemPlacer = remember { VerticalAxis.ItemPlacer.step({ 20.0 }) }
                 ),
-                bottomAxis = HorizontalAxis.rememberBottom(),
+                bottomAxis = HorizontalAxis.rememberBottom(
+                    label = rememberAxisLabelComponent(color = labelColor),
+                    valueFormatter = repFormatter,
+                ),
+                layerPadding = { cartesianLayerPadding(scalableStart = 16.dp, scalableEnd = 16.dp) }
             ),
             modelProducer = modelProducer,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 4.dp),
         )
 
         Spacer(Modifier.height(4.dp))
@@ -225,7 +250,7 @@ private fun GeneralLegend() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         muscleOrder.forEach { muscle ->
             val color = muscleColors[muscle] ?: return@forEach
@@ -269,24 +294,25 @@ private fun BilateralNav(
         delta >= 10 -> Color(0xFFB26A0E)
         else        -> null
     }
-    val izqColor = if (riskColor != null && weaker == "izq") riskColor else colorIzq
-    val derColor = if (riskColor != null && weaker == "der") riskColor else colorDer
+    val izqColor   = if (riskColor != null && weaker == "izq") riskColor else colorIzq
+    val derColor   = if (riskColor != null && weaker == "der") riskColor else colorDer
     val deltaColor = riskColor ?: MaterialTheme.olExtras.ink3
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // Muscle nav
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onPrev, enabled = muscleIdx > 0, modifier = Modifier.size(28.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Anterior",
                     modifier = Modifier.size(16.dp), tint = MaterialTheme.olExtras.ink3)
             }
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(6.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text  = muscle.displayName,
@@ -299,15 +325,19 @@ private fun BilateralNav(
                     color = MaterialTheme.olExtras.ink3
                 )
             }
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(6.dp))
             IconButton(onClick = onNext, enabled = muscleIdx < muscleOrder.lastIndex, modifier = Modifier.size(28.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Siguiente",
                     modifier = Modifier.size(16.dp), tint = MaterialTheme.olExtras.ink3)
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            SideValue(label = "IZQ", value = avgLeft, color = izqColor)
+        // IZQ / DER / Δ — right side
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SideValue(label = "IZQ", value = avgLeft,  color = izqColor)
             SideValue(label = "DER", value = avgRight, color = derColor)
             Text(
                 text  = "Δ $delta%",
@@ -349,7 +379,7 @@ private fun AsymmetrySection(repActivations: List<Map<Muscle, MusclePair>>) {
         muscleOrder.forEach { muscle ->
             val avgLeft  = repActivations.map { (it[muscle] ?: MusclePair(0f, 0f)).left  }.average().toFloat()
             val avgRight = repActivations.map { (it[muscle] ?: MusclePair(0f, 0f)).right }.average().toFloat()
-            val delta    = if (max(avgLeft, avgRight) > 0f)
+            val delta = if (max(avgLeft, avgRight) > 0f)
                 (abs(avgLeft - avgRight) / max(avgLeft, avgRight) * 100).toInt() else 0
             val barColor = when {
                 delta >= 15 -> Color(0xFFB42318)
@@ -363,6 +393,8 @@ private fun AsymmetrySection(repActivations: List<Map<Muscle, MusclePair>>) {
 
 @Composable
 private fun AsymmetryRow(label: String, deltaPct: Int, barColor: Color) {
+    val trackColor = MaterialTheme.colorScheme.outlineVariant
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -373,31 +405,44 @@ private fun AsymmetryRow(label: String, deltaPct: Int, barColor: Color) {
             color    = MaterialTheme.olExtras.ink3,
             modifier = Modifier.width(28.dp)
         )
-        Box(
+
+        // Canvas bar: track is neutral, fill grows from center rightward
+        Canvas(
             modifier = Modifier
                 .weight(1f)
                 .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(MaterialTheme.colorScheme.outlineVariant)
         ) {
-            // Bar grows from center rightward
-            val fraction = (deltaPct * 3).coerceAtMost(50) / 100f
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.5f + fraction)
-                    .height(6.dp)
-                    .align(Alignment.CenterStart)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(barColor.copy(alpha = 0.35f))
+            val w = size.width
+            val h = size.height
+            val r = h / 2f
+            val centerX = w / 2f
+
+            // Background track
+            drawRoundRect(
+                color        = trackColor,
+                cornerRadius = CornerRadius(r),
+                size         = Size(w, h)
             )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .width(1.dp)
-                    .height(6.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant)
+
+            // Fill: grows from center to the right, represents deviation
+            val fillFraction = (deltaPct * 3).coerceAtMost(50) / 100f
+            val fillWidth = fillFraction * w
+            if (fillWidth > 0f) {
+                drawRect(
+                    color    = barColor.copy(alpha = 0.4f),
+                    topLeft  = Offset(centerX, 0f),
+                    size     = Size(fillWidth, h)
+                )
+            }
+
+            // Center divider line
+            drawRect(
+                color    = trackColor,
+                topLeft  = Offset(centerX - 0.5.dp.toPx(), 0f),
+                size     = Size(1.dp.toPx(), h)
             )
         }
+
         Text(
             text  = "$deltaPct%",
             style = MonoText.labelSmall.copy(fontWeight = FontWeight.Medium),
