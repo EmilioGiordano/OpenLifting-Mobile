@@ -28,6 +28,7 @@ data class SetExpandedItem(
     val depth: SquatDepth,
     val metrics: SetMetrics,
     val activations: Map<Muscle, MusclePair>,
+    val repActivations: List<Map<Muscle, MusclePair>>,  // index 0 = rep 1
     val recommendations: List<Recommendation>,
     val overallRisk: RiskLevel
 )
@@ -75,7 +76,11 @@ class SessionDetailViewModel @Inject constructor(
                 val metricsDomain = setDao.getMetricsForSet(setEntity.localId)?.toDomain()
                     ?: return@mapNotNull null
                 val recs = setDao.getRecommendationsForSet(setEntity.localId).map { it.toDomain() }
-                val activations = aggregateActivations(setEntity.localId)
+                val reps = setDao.getRepsForSet(setEntity.localId)
+                val activations = aggregateActivations(reps.map { it.id })
+                val repActivations = reps.map { rep ->
+                    activationsForRep(setDao.getActivationsForRep(rep.id))
+                }
                 SetExpandedItem(
                     setNumber       = setEntity.setNumber,
                     loadKg          = setEntity.loadKg,
@@ -85,6 +90,7 @@ class SessionDetailViewModel @Inject constructor(
                     depth           = runCatching { SquatDepth.valueOf(setEntity.depth) }.getOrDefault(SquatDepth.PARALLEL),
                     metrics         = metricsDomain,
                     activations     = activations,
+                    repActivations  = repActivations,
                     recommendations = recs,
                     overallRisk     = metricsDomain.overallRisk
                 )
@@ -108,25 +114,25 @@ class SessionDetailViewModel @Inject constructor(
         }
     }
 
-    private suspend fun aggregateActivations(setId: Long): Map<Muscle, MusclePair> {
-        val reps = setDao.getRepsForSet(setId)
-        if (reps.isEmpty()) return emptyMap()
-
-        val allActivations = reps.flatMap { setDao.getActivationsForRep(it.id) }
+    private suspend fun aggregateActivations(repIds: List<Long>): Map<Muscle, MusclePair> {
+        if (repIds.isEmpty()) return emptyMap()
+        val allActivations = repIds.flatMap { setDao.getActivationsForRep(it) }
         return Muscle.entries.associateWith { muscle ->
             val left = allActivations
                 .filter { it.muscle == muscle.name && it.side == MuscleSide.LEFT.name }
-                .map { it.percentMvc }
-                .ifEmpty { listOf(0f) }
-                .average()
-                .toFloat()
+                .map { it.percentMvc }.ifEmpty { listOf(0f) }.average().toFloat()
             val right = allActivations
                 .filter { it.muscle == muscle.name && it.side == MuscleSide.RIGHT.name }
-                .map { it.percentMvc }
-                .ifEmpty { listOf(0f) }
-                .average()
-                .toFloat()
+                .map { it.percentMvc }.ifEmpty { listOf(0f) }.average().toFloat()
             MusclePair(left, right)
         }
+    }
+
+    private fun activationsForRep(
+        entities: List<com.openlifting.data.local.entity.MuscleActivationEntity>
+    ): Map<Muscle, MusclePair> = Muscle.entries.associateWith { muscle ->
+        val left  = entities.firstOrNull { it.muscle == muscle.name && it.side == MuscleSide.LEFT.name  }?.percentMvc ?: 0f
+        val right = entities.firstOrNull { it.muscle == muscle.name && it.side == MuscleSide.RIGHT.name }?.percentMvc ?: 0f
+        MusclePair(left, right)
     }
 }

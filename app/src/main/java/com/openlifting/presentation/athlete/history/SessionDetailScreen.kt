@@ -48,9 +48,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.openlifting.domain.model.Muscle
 import com.openlifting.domain.model.RiskLevel
 import com.openlifting.domain.model.SetMetrics
-import com.openlifting.presentation.athlete.session.BilateralRow
+import com.openlifting.presentation.athlete.session.ActivationChartCard
 import com.openlifting.presentation.athlete.session.MetricCard
-import com.openlifting.domain.model.MusclePair
 import com.openlifting.presentation.athlete.session.RecommendationCard
 import com.openlifting.presentation.athlete.session.SetHeader
 import com.openlifting.presentation.common.RiskBadge
@@ -328,25 +327,8 @@ private fun ExpandedContent(item: SetExpandedItem) {
             depth      = item.depth
         )
 
-        // Bilateral block
-        Text(
-            text  = "Activación muscular (%MVC)",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-            Muscle.entries.forEach { muscle ->
-                val pair = item.activations[muscle] ?: MusclePair(0f, 0f)
-                val (bsa, risk) = bsaForMuscle(item.metrics, muscle)
-                BilateralRow(
-                    muscle   = muscle,
-                    leftPct  = pair.left,
-                    rightPct = pair.right,
-                    bsaPct   = bsa,
-                    risk     = risk
-                )
-            }
-        }
+        // Activation chart (rep-by-rep, General / Bilateral toggle)
+        ActivationChartCard(repActivations = item.repActivations)
 
         // Metric cards 2x2
         Text(
