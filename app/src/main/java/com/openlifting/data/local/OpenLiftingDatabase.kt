@@ -31,7 +31,7 @@ import com.openlifting.data.local.entity.UserEntity
         RecommendationEntity::class,
         InstructorAthleteEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class OpenLiftingDatabase : RoomDatabase() {
