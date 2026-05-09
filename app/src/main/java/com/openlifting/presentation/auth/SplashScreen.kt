@@ -13,8 +13,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -22,34 +20,21 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.openlifting.domain.model.UserRole
 import com.openlifting.ui.theme.olExtras
-import kotlinx.coroutines.delay
 
-/**
- * Auto-routes the user to athlete/instructor home if a session exists, or to Login otherwise.
- *
- * The session check resolves locally (Room lookup) so it returns quickly. We give it a small
- * delay window before falling back to Login — this avoids the brief Login flash that would
- * otherwise happen on cold launch when a session does exist but the Flow hasn't emitted yet.
- */
 @Composable
 fun SplashScreen(
     onSessionFound: (UserRole) -> Unit,
     onNoSession: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-
     LaunchedEffect(Unit) {
         viewModel.checkSession()
-        delay(400)
-        if (viewModel.uiState.value is LoginUiState.Idle) {
-            onNoSession()
-        }
-    }
-
-    LaunchedEffect(uiState) {
-        if (uiState is LoginUiState.Success) {
-            onSessionFound((uiState as LoginUiState.Success).role)
+        viewModel.uiState.collect { state ->
+            when (state) {
+                is LoginUiState.Success -> onSessionFound(state.role)
+                LoginUiState.Idle       -> onNoSession()
+                else                    -> Unit
+            }
         }
     }
 

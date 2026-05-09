@@ -51,6 +51,8 @@ fun LoginScreen(
 
     val isLoading = uiState is LoginUiState.Loading
     val canSubmit = !isLoading && email.isNotBlank() && password.length >= 4
+    val errorMessage = uiState.toMessage()
+    val hasError = errorMessage != null
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -81,10 +83,13 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value         = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    viewModel.clearTransientError()
+                },
                 label         = { Text("Email") },
                 singleLine    = true,
-                isError       = uiState is LoginUiState.Error,
+                isError       = hasError,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier      = Modifier.fillMaxWidth()
             )
@@ -93,19 +98,22 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value         = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+                    viewModel.clearTransientError()
+                },
                 label         = { Text("Contraseña") },
                 singleLine    = true,
-                isError       = uiState is LoginUiState.Error,
+                isError       = hasError,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier      = Modifier.fillMaxWidth()
             )
 
-            if (uiState is LoginUiState.Error) {
+            if (errorMessage != null) {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text  = (uiState as LoginUiState.Error).message,
+                    text  = errorMessage,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier
@@ -147,4 +155,13 @@ fun LoginScreen(
             }
         }
     }
+}
+
+private fun LoginUiState.toMessage(): String? = when (this) {
+    is LoginUiState.FieldErrors -> errors.values.firstOrNull()?.firstOrNull()
+        ?: "Revisá los datos ingresados."
+    is LoginUiState.Error       -> message
+    LoginUiState.Throttled      -> "Demasiados intentos. Esperá un momento e intentá de nuevo."
+    LoginUiState.NetworkError   -> "No se pudo conectar a Vortex. Verificá tu conexión."
+    else -> null
 }

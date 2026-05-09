@@ -63,7 +63,10 @@ fun RegisterScreen(
     }
 
     val isLoading = uiState is LoginUiState.Loading
-    val canSubmit = !isLoading && name.isNotBlank() && email.isNotBlank() && password.length >= 4
+    val canSubmit = !isLoading && name.isNotBlank() && email.isNotBlank() && password.length >= 8
+
+    val fieldErrors = (uiState as? LoginUiState.FieldErrors)?.errors ?: emptyMap()
+    val generalError = uiState.toGeneralMessage()
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -96,31 +99,37 @@ fun RegisterScreen(
 
                 Spacer(Modifier.height(8.dp))
 
-                OutlinedTextField(
+                FieldWithError(
                     value         = name,
-                    onValueChange = { name = it },
-                    label         = { Text("Nombre") },
-                    singleLine    = true,
-                    modifier      = Modifier.fillMaxWidth()
+                    onValueChange = {
+                        name = it
+                        viewModel.clearTransientError()
+                    },
+                    label = "Nombre",
+                    error = fieldErrors["name"]?.firstOrNull()
                 )
 
-                OutlinedTextField(
+                FieldWithError(
                     value         = email,
-                    onValueChange = { email = it },
-                    label         = { Text("Email") },
-                    singleLine    = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier      = Modifier.fillMaxWidth()
+                    onValueChange = {
+                        email = it
+                        viewModel.clearTransientError()
+                    },
+                    label = "Email",
+                    error = fieldErrors["email"]?.firstOrNull(),
+                    keyboardType = KeyboardType.Email
                 )
 
-                OutlinedTextField(
+                FieldWithError(
                     value         = password,
-                    onValueChange = { password = it },
-                    label         = { Text("Contraseña") },
-                    singleLine    = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier      = Modifier.fillMaxWidth()
+                    onValueChange = {
+                        password = it
+                        viewModel.clearTransientError()
+                    },
+                    label = "Contraseña (8+ caracteres)",
+                    error = fieldErrors["password"]?.firstOrNull(),
+                    keyboardType = KeyboardType.Password,
+                    isPassword = true
                 )
 
                 Spacer(Modifier.height(8.dp))
@@ -142,9 +151,9 @@ fun RegisterScreen(
                     }
                 }
 
-                if (uiState is LoginUiState.Error) {
+                if (generalError != null) {
                     Text(
-                        text  = (uiState as LoginUiState.Error).message,
+                        text  = generalError,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(horizontal = 4.dp)
@@ -177,3 +186,40 @@ fun RegisterScreen(
     }
 }
 
+@Composable
+private fun FieldWithError(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    error: String?,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    isPassword: Boolean = false
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value         = value,
+            onValueChange = onValueChange,
+            label         = { Text(label) },
+            singleLine    = true,
+            isError       = error != null,
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (error != null) {
+            Text(
+                text  = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            )
+        }
+    }
+}
+
+private fun LoginUiState.toGeneralMessage(): String? = when (this) {
+    is LoginUiState.Error     -> message
+    LoginUiState.Throttled    -> "Demasiados intentos. Esperá un momento e intentá de nuevo."
+    LoginUiState.NetworkError -> "No se pudo conectar a Vortex. Verificá tu conexión."
+    else -> null
+}
