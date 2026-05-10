@@ -24,6 +24,7 @@ import com.openlifting.presentation.athlete.history.HistoryScreen
 import com.openlifting.presentation.athlete.history.SessionDetailScreen
 import com.openlifting.presentation.athlete.home.AthleteHomeScreen
 import com.openlifting.presentation.athlete.profile.AthleteProfileScreen
+import com.openlifting.presentation.athlete.profile.EditAthleteProfileScreen
 import com.openlifting.presentation.athlete.session.SessionScreen
 
 sealed class AthleteTab(val route: String, val label: String, val icon: ImageVector) {
@@ -44,7 +45,8 @@ private val athleteTabs = listOf(
 fun AthleteScaffold(
     onLogout: () -> Unit,
     onSwitchToInstructor: () -> Unit,
-    onStartRecalibration: () -> Unit = {}
+    onStartRecalibration: () -> Unit = {},
+    onStartProfileSetup: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val navBackStack by navController.currentBackStackEntryAsState()
@@ -79,7 +81,8 @@ fun AthleteScaffold(
             innerPadding = innerPadding,
             onLogout = onLogout,
             onSwitchToInstructor = onSwitchToInstructor,
-            onStartRecalibration = onStartRecalibration
+            onStartRecalibration = onStartRecalibration,
+            onStartProfileSetup = onStartProfileSetup
         )
     }
 }
@@ -107,7 +110,8 @@ private fun AthleteNavHost(
     innerPadding: androidx.compose.foundation.layout.PaddingValues,
     onLogout: () -> Unit,
     onSwitchToInstructor: () -> Unit,
-    onStartRecalibration: () -> Unit
+    onStartRecalibration: () -> Unit,
+    onStartProfileSetup: () -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -151,7 +155,16 @@ private fun AthleteNavHost(
             AthleteProfileScreen(
                 onLogout             = onLogout,
                 onSwitchToInstructor = onSwitchToInstructor,
-                onRecalibrate        = onStartRecalibration
+                onRecalibrate        = onStartRecalibration,
+                onEditProfile        = { navController.navigate("athlete/profile/edit") },
+                onSetupProfile       = onStartProfileSetup
+            )
+        }
+
+        composable("athlete/profile/edit") {
+            EditAthleteProfileScreen(
+                onSaved = { navController.popBackStack() },
+                onBack  = { navController.popBackStack() }
             )
         }
     }

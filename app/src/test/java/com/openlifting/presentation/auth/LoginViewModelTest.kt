@@ -4,6 +4,8 @@ import com.openlifting.domain.model.AuthResult
 import com.openlifting.domain.model.User
 import com.openlifting.domain.model.UserRole
 import com.openlifting.domain.repository.AuthRepository
+import com.openlifting.domain.usecase.auth.DecideStartRoute
+import com.openlifting.domain.usecase.auth.StartRoute
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -24,6 +26,7 @@ import java.io.IOException
 class LoginViewModelTest {
 
     private val authRepository = mockk<AuthRepository>()
+    private val decideStartRoute = mockk<DecideStartRoute>()
 
     @Before
     fun setUp() {
@@ -35,7 +38,7 @@ class LoginViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun build() = LoginViewModel(authRepository)
+    private fun build() = LoginViewModel(authRepository, decideStartRoute)
 
     private fun athleteUser() = User(
         id = 1L, email = "a@b.com", name = "Test", role = UserRole.ATHLETE,
@@ -45,22 +48,38 @@ class LoginViewModelTest {
     // ── login ──────────────────────────────────────────────────────────────────
 
     @Test
-    fun `login success emits Success with role`() = runTest {
+    fun `login success emits Success with route from DecideStartRoute`() = runTest {
         coEvery { authRepository.login("a@b.com", "password123") } returns
             AuthResult.Success(athleteUser())
+        coEvery { decideStartRoute(any()) } returns StartRoute.AthleteHome
 
         val vm = build()
         vm.login("a@b.com", "password123")
 
         val state = vm.uiState.value
         assertTrue("expected Success, got $state", state is LoginUiState.Success)
-        assertEquals(UserRole.ATHLETE, (state as LoginUiState.Success).role)
+        assertEquals(StartRoute.AthleteHome, (state as LoginUiState.Success).route)
+    }
+
+    @Test
+    fun `login success for athlete without profile routes to onboarding`() = runTest {
+        coEvery { authRepository.login(any(), any()) } returns AuthResult.Success(athleteUser())
+        coEvery { decideStartRoute(any()) } returns StartRoute.AthleteOnboardingProfile
+
+        val vm = build()
+        vm.login("a@b.com", "x")
+
+        assertEquals(
+            StartRoute.AthleteOnboardingProfile,
+            (vm.uiState.value as LoginUiState.Success).route
+        )
     }
 
     @Test
     fun `login trims email before calling repository`() = runTest {
         coEvery { authRepository.login("a@b.com", "password123") } returns
             AuthResult.Success(athleteUser())
+        coEvery { decideStartRoute(any()) } returns StartRoute.AthleteHome
 
         val vm = build()
         vm.login("  a@b.com  ", "password123")
@@ -130,21 +149,38 @@ class LoginViewModelTest {
     // ── register ──────────────────────────────────────────────────────────────
 
     @Test
-    fun `register success emits Success with role from API`() = runTest {
+    fun `register athlete emits Success with route from DecideStartRoute`() = runTest {
+        coEvery {
+            authRepository.register("Coach", "c@x.com", "password123", UserRole.ATHLETE)
+        } returns AuthResult.Success(athleteUser())
+        coEvery { decideStartRoute(any()) } returns StartRoute.AthleteOnboardingProfile
+
+        val vm = build()
+        vm.register("Coach", "c@x.com", "password123", UserRole.ATHLETE)
+
+        val state = vm.uiState.value
+        assertTrue(state is LoginUiState.Success)
+        assertEquals(StartRoute.AthleteOnboardingProfile, (state as LoginUiState.Success).route)
+    }
+
+    @Test
+    fun `register instructor routes to instructor home`() = runTest {
         val coach = User(
             id = 2L, email = "c@x.com", name = "Coach",
             role = UserRole.INSTRUCTOR, authToken = "tok2", serverId = 2L
         )
         coEvery {
-            authRepository.register("Coach", "c@x.com", "password123", UserRole.INSTRUCTOR)
+            authRepository.register(any(), any(), any(), UserRole.INSTRUCTOR)
         } returns AuthResult.Success(coach)
+        coEvery { decideStartRoute(any()) } returns StartRoute.InstructorHome
 
         val vm = build()
         vm.register("Coach", "c@x.com", "password123", UserRole.INSTRUCTOR)
 
-        val state = vm.uiState.value
-        assertTrue(state is LoginUiState.Success)
-        assertEquals(UserRole.INSTRUCTOR, (state as LoginUiState.Success).role)
+        assertEquals(
+            StartRoute.InstructorHome,
+            (vm.uiState.value as LoginUiState.Success).route
+        )
     }
 
     @Test
@@ -167,6 +203,7 @@ class LoginViewModelTest {
         coEvery {
             authRepository.register("Test", "a@b.com", "password123", UserRole.ATHLETE)
         } returns AuthResult.Success(athleteUser())
+        coEvery { decideStartRoute(any()) } returns StartRoute.AthleteOnboardingProfile
 
         val vm = build()
         vm.register("  Test  ", "  a@b.com  ", "password123", UserRole.ATHLETE)
@@ -187,17 +224,18 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `checkSession with cached user and successful probe emits Success`() = runTest {
+    fun `checkSession with cached user and successful probe routes via DecideStartRoute`() = runTest {
         val cached = athleteUser()
         coEvery { authRepository.getCachedUser() } returns cached
         coEvery { authRepository.probeSession() } returns AuthResult.Success(cached)
+        coEvery { decideStartRoute(cached) } returns StartRoute.AthleteHome
 
         val vm = build()
         vm.checkSession()
 
         val state = vm.uiState.value
         assertTrue(state is LoginUiState.Success)
-        assertEquals(UserRole.ATHLETE, (state as LoginUiState.Success).role)
+        assertEquals(StartRoute.AthleteHome, (state as LoginUiState.Success).route)
     }
 
     @Test
@@ -212,17 +250,18 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `checkSession with cached user and network error falls back to Success`() = runTest {
+    fun `checkSession with cached user and network error still routes via DecideStartRoute`() = runTest {
         val cached = athleteUser()
         coEvery { authRepository.getCachedUser() } returns cached
         coEvery { authRepository.probeSession() } returns AuthResult.NetworkError()
+        coEvery { decideStartRoute(cached) } returns StartRoute.AthleteHome
 
         val vm = build()
         vm.checkSession()
 
         val state = vm.uiState.value
         assertTrue("expected Success fallback, got $state", state is LoginUiState.Success)
-        assertEquals(UserRole.ATHLETE, (state as LoginUiState.Success).role)
+        assertEquals(StartRoute.AthleteHome, (state as LoginUiState.Success).route)
     }
 
     // ── clearTransientError ────────────────────────────────────────────────────
@@ -255,6 +294,7 @@ class LoginViewModelTest {
     @Test
     fun `clearTransientError preserves Success state`() = runTest {
         coEvery { authRepository.login(any(), any()) } returns AuthResult.Success(athleteUser())
+        coEvery { decideStartRoute(any()) } returns StartRoute.AthleteHome
 
         val vm = build()
         vm.login("a@b.com", "x")

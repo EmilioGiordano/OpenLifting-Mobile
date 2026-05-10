@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.openlifting.domain.model.AuthResult
 import com.openlifting.domain.model.UserRole
 import com.openlifting.domain.repository.AuthRepository
+import com.openlifting.domain.usecase.auth.DecideStartRoute
+import com.openlifting.domain.usecase.auth.StartRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +16,7 @@ import javax.inject.Inject
 sealed interface LoginUiState {
     data object Idle : LoginUiState
     data object Loading : LoginUiState
-    data class Success(val role: UserRole) : LoginUiState
+    data class Success(val route: StartRoute) : LoginUiState
     data class FieldErrors(val errors: Map<String, List<String>>) : LoginUiState
     data class Error(val message: String) : LoginUiState
     data object Throttled : LoginUiState
@@ -23,7 +25,8 @@ sealed interface LoginUiState {
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val decideStartRoute: DecideStartRoute
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -32,14 +35,14 @@ class LoginViewModel @Inject constructor(
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _uiState.value = LoginUiState.Loading
-            _uiState.value = mapResult(authRepository.login(email.trim(), password))
+            _uiState.value = mapAuthResult(authRepository.login(email.trim(), password))
         }
     }
 
     fun register(name: String, email: String, password: String, role: UserRole) {
         viewModelScope.launch {
             _uiState.value = LoginUiState.Loading
-            _uiState.value = mapResult(
+            _uiState.value = mapAuthResult(
                 authRepository.register(name.trim(), email.trim(), password, role)
             )
         }
@@ -53,10 +56,13 @@ class LoginViewModel @Inject constructor(
                 _uiState.value = LoginUiState.Idle
                 return@launch
             }
-            when (val result = authRepository.probeSession()) {
-                is AuthResult.Success    -> _uiState.value = LoginUiState.Success(result.user.role)
-                AuthResult.Unauthorized  -> _uiState.value = LoginUiState.Idle
-                else                     -> _uiState.value = LoginUiState.Success(cached.role)
+            when (val probe = authRepository.probeSession()) {
+                is AuthResult.Success ->
+                    _uiState.value = LoginUiState.Success(decideStartRoute(probe.user))
+                AuthResult.Unauthorized ->
+                    _uiState.value = LoginUiState.Idle
+                else ->
+                    _uiState.value = LoginUiState.Success(decideStartRoute(cached))
             }
         }
     }
@@ -67,8 +73,8 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    private fun mapResult(result: AuthResult): LoginUiState = when (result) {
-        is AuthResult.Success         -> LoginUiState.Success(result.user.role)
+    private suspend fun mapAuthResult(result: AuthResult): LoginUiState = when (result) {
+        is AuthResult.Success         -> LoginUiState.Success(decideStartRoute(result.user))
         is AuthResult.ValidationError -> LoginUiState.FieldErrors(result.errors)
         AuthResult.Throttled          -> LoginUiState.Throttled
         AuthResult.Unauthorized       -> LoginUiState.Error("Sesión no válida. Iniciá sesión de nuevo.")

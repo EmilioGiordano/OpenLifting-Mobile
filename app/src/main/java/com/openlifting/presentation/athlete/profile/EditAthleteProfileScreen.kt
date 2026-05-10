@@ -1,4 +1,4 @@
-package com.openlifting.presentation.onboarding
+package com.openlifting.presentation.athlete.profile
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,18 +37,19 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.openlifting.domain.model.Sex
+import com.openlifting.presentation.onboarding.SubmissionState
 import com.openlifting.ui.theme.MonoText
-import com.openlifting.ui.theme.olExtras
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OnboardingProfileScreen(
-    onContinue: () -> Unit,
+fun EditAthleteProfileScreen(
+    onSaved: () -> Unit,
     onBack: () -> Unit,
-    viewModel: OnboardingViewModel = hiltViewModel()
+    viewModel: EditAthleteProfileViewModel = hiltViewModel()
 ) {
-    val draft by viewModel.profile.collectAsState()
-    val submission by viewModel.profileSubmission.collectAsState()
+    val draft by viewModel.draft.collectAsState()
+    val submission by viewModel.submission.collectAsState()
+
     val isSubmitting = submission is SubmissionState.Submitting
     val fieldErrors = (submission as? SubmissionState.FieldErrors)?.errors ?: emptyMap()
     val generalMessage = when (val s = submission) {
@@ -60,7 +61,7 @@ fun OnboardingProfileScreen(
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
-                title = { Text("Tus datos", style = MaterialTheme.typography.titleLarge) },
+                title = { Text("Editar datos", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
@@ -79,28 +80,22 @@ fun OnboardingProfileScreen(
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(
-                    "Necesitamos algunos datos personales para personalizar tu análisis.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(8.dp))
 
                 FieldWithError(
-                    value         = draft.firstName,
+                    value = draft.firstName,
                     onValueChange = {
                         viewModel.setFirstName(it)
-                        viewModel.clearProfileSubmissionError()
+                        viewModel.clearError()
                     },
                     label = "Nombre",
                     error = draft.firstNameError ?: fieldErrors["first_name"]?.firstOrNull()
                 )
                 FieldWithError(
-                    value         = draft.lastName,
+                    value = draft.lastName,
                     onValueChange = {
                         viewModel.setLastName(it)
-                        viewModel.clearProfileSubmissionError()
+                        viewModel.clearError()
                     },
                     label = "Apellido",
                     error = draft.lastNameError ?: fieldErrors["last_name"]?.firstOrNull()
@@ -112,65 +107,65 @@ fun OnboardingProfileScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         val bwError = draft.bodyweightError ?: fieldErrors["bodyweight_kg"]?.firstOrNull()
                         OutlinedTextField(
-                            value         = draft.bodyweightKg,
+                            value = draft.bodyweightKg,
                             onValueChange = {
                                 viewModel.setBodyweight(it)
-                                viewModel.clearProfileSubmissionError()
+                                viewModel.clearError()
                             },
-                            label         = { Text("Peso") },
-                            isError       = bwError != null,
-                            suffix        = { Text("kg", style = MonoText.labelMedium) },
+                            label = { Text("Peso") },
+                            isError = bwError != null,
+                            suffix = { Text("kg", style = MonoText.labelMedium) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine    = true,
-                            modifier      = Modifier.fillMaxWidth()
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
                         bwError?.let {
-                            Text(
-                                it,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-                            )
+                            Text(it, color = MaterialTheme.colorScheme.error,
+                                 style = MaterialTheme.typography.bodySmall,
+                                 modifier = Modifier.padding(start = 4.dp, top = 4.dp))
                         }
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         val ageErr = draft.ageError ?: fieldErrors["age_years"]?.firstOrNull()
                         OutlinedTextField(
-                            value         = draft.ageYears,
+                            value = draft.ageYears,
                             onValueChange = {
                                 viewModel.setAge(it)
-                                viewModel.clearProfileSubmissionError()
+                                viewModel.clearError()
                             },
-                            label         = { Text("Edad") },
-                            isError       = ageErr != null,
-                            suffix        = { Text("años", style = MonoText.labelMedium) },
+                            label = { Text("Edad") },
+                            isError = ageErr != null,
+                            suffix = { Text("años", style = MonoText.labelMedium) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine    = true,
-                            modifier      = Modifier.fillMaxWidth()
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
                         ageErr?.let {
-                            Text(
-                                it,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-                            )
+                            Text(it, color = MaterialTheme.colorScheme.error,
+                                 style = MaterialTheme.typography.bodySmall,
+                                 modifier = Modifier.padding(start = 4.dp, top = 4.dp))
                         }
                     }
                 }
 
                 Spacer(Modifier.height(4.dp))
-                Text("Sexo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text("Sexo", style = MaterialTheme.typography.labelLarge,
+                     color = MaterialTheme.colorScheme.onSurface)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val opts = Sex.entries
+                    val opts = listOf(Sex.MALE, Sex.FEMALE)
                     opts.forEachIndexed { idx, s ->
                         SegmentedButton(
                             selected = draft.sex == s,
-                            onClick  = { viewModel.setSex(s) },
-                            shape    = SegmentedButtonDefaults.itemShape(index = idx, count = opts.size),
-                            label    = { Text(s.displayName) }
+                            onClick = { viewModel.setSex(s) },
+                            shape = SegmentedButtonDefaults.itemShape(index = idx, count = opts.size),
+                            label = { Text(s.displayName) }
                         )
                     }
+                }
+                fieldErrors["sex"]?.firstOrNull()?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error,
+                         style = MaterialTheme.typography.bodySmall,
+                         modifier = Modifier.padding(start = 4.dp))
                 }
 
                 if (generalMessage != null) {
@@ -185,18 +180,18 @@ fun OnboardingProfileScreen(
                 Spacer(Modifier.height(8.dp))
 
                 Button(
-                    onClick = { viewModel.saveProfile(onSaved = onContinue) },
-                    enabled = draft.isValid && !isSubmitting,
+                    onClick = { viewModel.save(onSaved) },
+                    enabled = draft.isValid && !isSubmitting && draft.loaded,
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
                     if (isSubmitting) {
                         CircularProgressIndicator(
-                            modifier   = Modifier.size(20.dp),
+                            modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color      = MaterialTheme.colorScheme.onPrimary
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("Continuar", style = MaterialTheme.typography.labelLarge)
+                        Text("Guardar", style = MaterialTheme.typography.labelLarge)
                     }
                 }
                 Spacer(Modifier.height(20.dp))
@@ -214,16 +209,16 @@ private fun FieldWithError(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
-            value         = value,
+            value = value,
             onValueChange = onValueChange,
-            label         = { Text(label) },
-            singleLine    = true,
-            isError       = error != null,
-            modifier      = Modifier.fillMaxWidth()
+            label = { Text(label) },
+            singleLine = true,
+            isError = error != null,
+            modifier = Modifier.fillMaxWidth()
         )
         if (error != null) {
             Text(
-                text  = error,
+                text = error,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
