@@ -3,7 +3,9 @@ package com.openlifting.data.mapper
 import com.openlifting.data.local.entity.MuscleActivationEntity
 import com.openlifting.data.local.entity.RecommendationEntity
 import com.openlifting.data.local.entity.SetMetricsEntity
+import com.openlifting.data.local.entity.TrainingSessionEntity
 import com.openlifting.data.local.entity.TrainingSetEntity
+import com.openlifting.data.remote.dto.TrainingSessionDto
 import com.openlifting.domain.model.Muscle
 import com.openlifting.domain.model.MuscleActivation
 import com.openlifting.domain.model.MuscleSide
@@ -13,6 +15,8 @@ import com.openlifting.domain.model.SetMetrics
 import com.openlifting.domain.model.SquatDepth
 import com.openlifting.domain.model.SquatVariant
 import com.openlifting.domain.model.TrainingSet
+import java.time.Instant
+import java.time.format.DateTimeParseException
 
 /**
  * Public mappers for Set / Metrics / Recommendation / Activation entities.
@@ -64,3 +68,30 @@ fun TrainingSetEntity.toDomain(): TrainingSet = TrainingSet(
     rpe            = rpe,
     synced         = synced
 )
+
+fun TrainingSessionDto.toEntity(
+    athleteUserId: Long,
+    instructorUserId: Long? = null,
+    existingLocalId: Long = 0
+): TrainingSessionEntity = TrainingSessionEntity(
+    localId          = existingLocalId,
+    serverId         = id,
+    athleteUserId    = athleteUserId,
+    instructorUserId = instructorUserId,
+    exercise         = exercise,
+    startedAt        = parseIsoOrNow(startedAt),
+    endedAt          = endedAt?.let(::parseIsoOrNull),
+    deviceSource     = deviceSource,
+    synced           = true
+)
+
+internal fun parseIsoOrNull(iso: String): Long? = try {
+    Instant.parse(iso).toEpochMilli()
+} catch (_: DateTimeParseException) {
+    null
+}
+
+internal fun parseIsoOrNow(iso: String): Long =
+    parseIsoOrNull(iso) ?: System.currentTimeMillis()
+
+internal fun Long.toIsoInstant(): String = Instant.ofEpochMilli(this).toString()

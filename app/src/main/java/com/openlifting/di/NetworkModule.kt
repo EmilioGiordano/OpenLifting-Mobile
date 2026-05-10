@@ -5,6 +5,7 @@ import com.openlifting.BuildConfig
 import com.openlifting.data.remote.AuthInterceptor
 import com.openlifting.data.remote.api.VortexApi
 import com.openlifting.data.remote.api.VortexAthleteApi
+import com.openlifting.data.remote.api.VortexSessionApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -66,4 +67,9 @@ object NetworkModule {
     @Singleton
     fun provideVortexAthleteApi(retrofit: Retrofit): VortexAthleteApi =
         retrofit.create(VortexAthleteApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideVortexSessionApi(retrofit: Retrofit): VortexSessionApi =
+        retrofit.create(VortexSessionApi::class.java)
 }
