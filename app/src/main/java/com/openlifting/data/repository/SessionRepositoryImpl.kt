@@ -10,12 +10,16 @@ import com.openlifting.data.local.entity.RecommendationEntity
 import com.openlifting.data.local.entity.SetMetricsEntity
 import com.openlifting.data.local.entity.TrainingSessionEntity
 import com.openlifting.data.local.entity.TrainingSetEntity
+import com.openlifting.data.mapper.buildPostSetRequest
 import com.openlifting.data.mapper.toEntity
 import com.openlifting.data.mapper.toIsoInstant
 import com.openlifting.data.remote.api.VortexSessionApi
 import com.openlifting.data.remote.dto.CreateSessionRequest
 import com.openlifting.data.remote.dto.EndSessionRequest
+import com.openlifting.data.remote.dto.PatchSessionRequest
+import com.openlifting.data.remote.dto.PostSetRequest
 import com.openlifting.data.remote.dto.TrainingSessionDto
+import com.openlifting.domain.model.DeviceSource
 import com.openlifting.domain.model.MuscleActivation
 import com.openlifting.domain.model.Recommendation
 import com.openlifting.domain.model.RiskLevel
@@ -118,25 +122,77 @@ class SessionRepositoryImpl @Inject constructor(
         activationsByRep: List<List<MuscleActivation>>,
         metrics: SetMetrics,
         recommendations: List<Recommendation>
-    ): Long = db.withTransaction {
-        val setId = setDao.insertSet(
-            TrainingSetEntity(
-                sessionLocalId = sessionLocalId,
-                setNumber = setNumber,
-                loadKg = loadKg,
-                targetReps = targetReps,
-                variant = variant.name,
-                depth = depth.name,
-                rpe = rpe
+    ): Long {
+        val setId = db.withTransaction {
+            val id = setDao.insertSet(
+                TrainingSetEntity(
+                    sessionLocalId = sessionLocalId,
+                    setNumber      = setNumber,
+                    loadKg         = loadKg,
+                    targetReps     = targetReps,
+                    variant        = variant.name,
+                    depth          = depth.name,
+                    rpe            = rpe
+                )
+            )
+            activationsByRep.forEachIndexed { index, repActivations ->
+                val repId = setDao.insertRep(RepEntity(setLocalId = id, repNumber = index + 1))
+                setDao.insertActivations(repActivations.map { it.toEntity(repId) })
+            }
+            setDao.insertMetrics(metrics.copy(setLocalId = id).toEntity())
+            setDao.insertRecommendations(recommendations.map { it.toEntity(id) })
+            id
+        }
+
+        val sessionServerId = sessionDao.getById(sessionLocalId)?.serverId
+        if (sessionServerId != null) {
+            val request = buildPostSetRequest(
+                setNumber        = setNumber,
+                loadKg           = loadKg,
+                targetReps       = targetReps,
+                variant          = variant,
+                depth            = depth,
+                rpe              = rpe,
+                activationsByRep = activationsByRep,
+                metrics          = metrics,
+                recommendations  = recommendations
+            )
+            val remoteId = tryRemotePostSet(sessionServerId, request)
+            if (remoteId != null) setDao.markSynced(localId = setId, serverId = remoteId)
+        }
+        return setId
+    }
+
+    override suspend fun updateSessionDeviceSource(sessionLocalId: Long, source: DeviceSource) {
+        val session = sessionDao.getById(sessionLocalId) ?: return
+        if (session.deviceSource == source.name) return    // already correct, skip the round-trip
+        val remoteOk = session.serverId?.let { tryRemotePatchDeviceSource(it, source) } ?: false
+        sessionDao.update(
+            session.copy(
+                deviceSource = source.name,
+                synced       = session.synced && (session.serverId == null || remoteOk)
             )
         )
-        activationsByRep.forEachIndexed { index, repActivations ->
-            val repId = setDao.insertRep(RepEntity(setLocalId = setId, repNumber = index + 1))
-            setDao.insertActivations(repActivations.map { it.toEntity(repId) })
-        }
-        setDao.insertMetrics(metrics.copy(setLocalId = setId).toEntity())
-        setDao.insertRecommendations(recommendations.map { it.toEntity(setId) })
-        setId
+    }
+
+    private suspend fun tryRemotePostSet(
+        sessionServerId: Long,
+        request: PostSetRequest
+    ): Long? = try {
+        val res = sessionApi.postSet(sessionServerId, request)
+        if (res.isSuccessful) res.body()?.id else null
+    } catch (_: Exception) {
+        null
+    }
+
+    private suspend fun tryRemotePatchDeviceSource(
+        sessionServerId: Long,
+        source: DeviceSource
+    ): Boolean = try {
+        sessionApi.patchSession(sessionServerId, PatchSessionRequest(deviceSource = source.name))
+            .isSuccessful
+    } catch (_: Exception) {
+        false
     }
 
     override fun observeSessionsForAthlete(userId: Long): Flow<List<TrainingSession>> =
