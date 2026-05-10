@@ -265,8 +265,12 @@ class OnboardingViewModel @Inject constructor(
     private suspend fun ensureProfileId(): Long? {
         if (savedProfileId != -1L) return savedProfileId
         val user = userDao.getLoggedInUser() ?: return null
-        val local = athleteProfileDao.getByUserId(user.id)
-        return local?.id?.also { savedProfileId = it }
+
+        athleteProfileDao.getByUserId(user.id)?.let { return it.id.also { id -> savedProfileId = id } }
+
+        // Cache miss — pull from backend before giving up
+        athleteProfileRepository.fetchProfile()
+        return athleteProfileDao.getByUserId(user.id)?.id?.also { savedProfileId = it }
     }
 
     private fun initialMvcState(): MvcCaptureUiState {
