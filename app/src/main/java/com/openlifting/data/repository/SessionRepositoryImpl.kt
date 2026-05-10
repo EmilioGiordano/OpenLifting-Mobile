@@ -10,6 +10,12 @@ import com.openlifting.data.local.entity.RecommendationEntity
 import com.openlifting.data.local.entity.SetMetricsEntity
 import com.openlifting.data.local.entity.TrainingSessionEntity
 import com.openlifting.data.local.entity.TrainingSetEntity
+import com.openlifting.data.mapper.toEntity
+import com.openlifting.data.mapper.toIsoInstant
+import com.openlifting.data.remote.api.VortexSessionApi
+import com.openlifting.data.remote.dto.CreateSessionRequest
+import com.openlifting.data.remote.dto.EndSessionRequest
+import com.openlifting.data.remote.dto.TrainingSessionDto
 import com.openlifting.domain.model.MuscleActivation
 import com.openlifting.domain.model.Recommendation
 import com.openlifting.domain.model.RiskLevel
@@ -25,18 +31,80 @@ import javax.inject.Inject
 class SessionRepositoryImpl @Inject constructor(
     private val db: OpenLiftingDatabase,
     private val sessionDao: SessionDao,
-    private val setDao: SetDao
+    private val setDao: SetDao,
+    private val sessionApi: VortexSessionApi
 ) : SessionRepository {
 
-    override suspend fun createSession(athleteUserId: Long, instructorUserId: Long?): Long =
-        sessionDao.insert(TrainingSessionEntity(
-            athleteUserId    = athleteUserId,
-            instructorUserId = instructorUserId
-        ))
+    override suspend fun createSession(athleteUserId: Long, instructorUserId: Long?): Long {
+        val now = System.currentTimeMillis()
+        val remote = tryRemoteCreate(now)
+        val entity = if (remote != null) {
+            TrainingSessionEntity(
+                serverId         = remote.id,
+                athleteUserId    = athleteUserId,
+                instructorUserId = instructorUserId,
+                exercise         = remote.exercise,
+                startedAt        = now,
+                deviceSource     = remote.deviceSource,
+                synced           = true
+            )
+        } else {
+            TrainingSessionEntity(
+                athleteUserId    = athleteUserId,
+                instructorUserId = instructorUserId,
+                startedAt        = now,
+                synced           = false
+            )
+        }
+        return sessionDao.insert(entity)
+    }
 
     override suspend fun endSession(sessionLocalId: Long) {
         val session = sessionDao.getById(sessionLocalId) ?: return
-        sessionDao.update(session.copy(endedAt = System.currentTimeMillis()))
+        val now = System.currentTimeMillis()
+        val remoteOk = session.serverId?.let { tryRemoteEnd(it, now) } ?: false
+        sessionDao.update(
+            session.copy(
+                endedAt = now,
+                synced  = session.synced && remoteOk
+            )
+        )
+    }
+
+    override suspend fun syncSessionsFromBackend(athleteUserId: Long): Int? {
+        val response = try {
+            sessionApi.listSessions(page = 1)
+        } catch (_: Exception) {
+            return null
+        }
+        if (!response.isSuccessful) return null
+        val dtos = response.body()?.data ?: return 0
+        for (dto in dtos) {
+            val existing = sessionDao.getByServerId(dto.id)
+            val entity = dto.toEntity(
+                athleteUserId    = athleteUserId,
+                instructorUserId = existing?.instructorUserId,
+                existingLocalId  = existing?.localId ?: 0
+            )
+            if (existing == null) sessionDao.insert(entity) else sessionDao.update(entity)
+        }
+        return dtos.size
+    }
+
+    private suspend fun tryRemoteCreate(startedAtMs: Long): TrainingSessionDto? = try {
+        val res = sessionApi.createSession(
+            CreateSessionRequest(startedAt = startedAtMs.toIsoInstant())
+        )
+        if (res.isSuccessful) res.body() else null
+    } catch (_: Exception) {
+        null
+    }
+
+    private suspend fun tryRemoteEnd(serverId: Long, endedAtMs: Long): Boolean = try {
+        sessionApi.endSession(serverId, EndSessionRequest(endedAt = endedAtMs.toIsoInstant()))
+            .isSuccessful
+    } catch (_: Exception) {
+        false
     }
 
     override suspend fun saveSetWithDetails(

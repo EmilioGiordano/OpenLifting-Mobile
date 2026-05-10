@@ -32,4 +32,11 @@ interface SessionRepository {
     suspend fun getMetrics(setLocalId: Long): SetMetrics?
     suspend fun getRecommendations(setLocalId: Long): List<Recommendation>
     suspend fun getActivationsForSet(setLocalId: Long): List<List<MuscleActivation>>
+
+    /**
+     * Pulls the athlete's sessions from Vortex and merges them into Room by [TrainingSessionEntity.serverId].
+     * Local-only sessions ([TrainingSessionEntity.synced] == false) are not affected.
+     * Returns the number of remote sessions seen, or null if the call failed.
+     */
+    suspend fun syncSessionsFromBackend(athleteUserId: Long): Int?
 }
