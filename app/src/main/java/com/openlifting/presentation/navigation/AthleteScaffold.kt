@@ -24,6 +24,7 @@ import com.openlifting.presentation.athlete.history.HistoryScreen
 import com.openlifting.presentation.athlete.history.SessionDetailScreen
 import com.openlifting.presentation.athlete.home.AthleteHomeScreen
 import com.openlifting.presentation.athlete.profile.AthleteProfileScreen
+import com.openlifting.presentation.athlete.profile.EditAthleteProfileScreen
 import com.openlifting.presentation.athlete.session.SessionScreen
 
 sealed class AthleteTab(val route: String, val label: String, val icon: ImageVector) {
@@ -151,7 +152,15 @@ private fun AthleteNavHost(
             AthleteProfileScreen(
                 onLogout             = onLogout,
                 onSwitchToInstructor = onSwitchToInstructor,
-                onRecalibrate        = onStartRecalibration
+                onRecalibrate        = onStartRecalibration,
+                onEditProfile        = { navController.navigate("athlete/profile/edit") }
+            )
+        }
+
+        composable("athlete/profile/edit") {
+            EditAthleteProfileScreen(
+                onSaved = { navController.popBackStack() },
+                onBack  = { navController.popBackStack() }
             )
         }
     }

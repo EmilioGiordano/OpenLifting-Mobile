@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.openlifting.domain.model.AthleteProfile
 import com.openlifting.domain.model.ThemeMode
 import com.openlifting.presentation.common.profile.ProfileViewModel
 import com.openlifting.ui.theme.MonoText
@@ -44,10 +45,13 @@ fun AthleteProfileScreen(
     onLogout: () -> Unit,
     onSwitchToInstructor: () -> Unit,
     onRecalibrate: () -> Unit = {},
-    viewModel: ProfileViewModel = hiltViewModel()
+    onEditProfile: () -> Unit = {},
+    profileViewModel: ProfileViewModel = hiltViewModel(),
+    athleteViewModel: AthleteProfileViewModel = hiltViewModel()
 ) {
-    val user      by viewModel.user.collectAsState()
-    val themeMode by viewModel.themeMode.collectAsState()
+    val user      by profileViewModel.user.collectAsState()
+    val themeMode by profileViewModel.themeMode.collectAsState()
+    val athlete   by athleteViewModel.athleteProfile.collectAsState()
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -57,25 +61,32 @@ fun AthleteProfileScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Header
             Text(
                 text  = "Perfil",
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            // Identity card
             ProfileIdentityCard(name = user?.name ?: "—", email = user?.email ?: "—")
 
-            // Preferencias section
+            ProfileSection(label = "DATOS FÍSICOS") {
+                AthleteDataCard(profile = athlete)
+                OutlinedButton(
+                    onClick  = onEditProfile,
+                    enabled  = athlete != null,
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Text("Editar datos")
+                }
+            }
+
             ProfileSection(label = "PREFERENCIAS") {
                 ThemeToggleRow(
                     current = themeMode,
-                    onChange = viewModel::setThemeMode
+                    onChange = profileViewModel::setThemeMode
                 )
             }
 
-            // Calibración section
             ProfileSection(label = "CALIBRACIÓN") {
                 OutlinedButton(
                     onClick  = onRecalibrate,
@@ -85,7 +96,6 @@ fun AthleteProfileScreen(
                 }
             }
 
-            // Cuenta section
             ProfileSection(label = "CUENTA") {
                 OutlinedButton(
                     onClick  = onSwitchToInstructor,
@@ -94,7 +104,7 @@ fun AthleteProfileScreen(
                     Text("Modo demo: cambiar a Entrenador")
                 }
                 TextButton(
-                    onClick  = { viewModel.logout(onLogout) },
+                    onClick  = { profileViewModel.logout(onLogout) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
@@ -110,6 +120,52 @@ fun AthleteProfileScreen(
 }
 
 @Composable
+private fun AthleteDataCard(profile: AthleteProfile?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (profile == null) {
+            Text(
+                text  = "Cargando datos…",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            DataRow("Nombre", "${profile.firstName} ${profile.lastName}")
+            DataRow("Peso", "${profile.bodyweightKg.toInt()} kg", mono = true)
+            DataRow("Edad", "${profile.ageYears} años", mono = true)
+            DataRow("Sexo", profile.sex.displayName)
+        }
+    }
+}
+
+@Composable
+private fun DataRow(label: String, value: String, mono: Boolean = false) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text  = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text  = value,
+            style = if (mono) MonoText.bodyMedium else MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
 private fun ProfileIdentityCard(name: String, email: String) {
     Row(
         modifier = Modifier
@@ -121,7 +177,6 @@ private fun ProfileIdentityCard(name: String, email: String) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Avatar
         Box(
             modifier = Modifier
                 .size(44.dp)
