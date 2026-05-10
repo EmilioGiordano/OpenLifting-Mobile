@@ -1,10 +1,12 @@
 package com.openlifting.di
 
+import com.openlifting.data.repository.AthleteProfileRepositoryImpl
 import com.openlifting.data.repository.AuthRepositoryImpl
 import com.openlifting.data.repository.LocalCoachRepository
 import com.openlifting.data.repository.SessionRepositoryImpl
 import com.openlifting.data.websocket.EmgDataSourceWithFallback
 import com.openlifting.domain.datasource.EmgDataSource
+import com.openlifting.domain.repository.AthleteProfileRepository
 import com.openlifting.domain.repository.AuthRepository
 import com.openlifting.domain.repository.CoachRepository
 import com.openlifting.domain.repository.SessionRepository
@@ -19,6 +21,11 @@ import javax.inject.Singleton
 abstract class RepositoryModule {
     @Binds @Singleton
     abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
+
+    @Binds @Singleton
+    abstract fun bindAthleteProfileRepository(
+        impl: AthleteProfileRepositoryImpl
+    ): AthleteProfileRepository
 
     @Binds @Singleton
     abstract fun bindSessionRepository(impl: SessionRepositoryImpl): SessionRepository

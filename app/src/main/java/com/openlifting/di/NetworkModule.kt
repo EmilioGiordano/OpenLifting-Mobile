@@ -4,6 +4,7 @@ import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFact
 import com.openlifting.BuildConfig
 import com.openlifting.data.remote.AuthInterceptor
 import com.openlifting.data.remote.api.VortexApi
+import com.openlifting.data.remote.api.VortexAthleteApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -60,4 +61,9 @@ object NetworkModule {
     @Singleton
     fun provideVortexApi(retrofit: Retrofit): VortexApi =
         retrofit.create(VortexApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideVortexAthleteApi(retrofit: Retrofit): VortexAthleteApi =
+        retrofit.create(VortexAthleteApi::class.java)
 }
