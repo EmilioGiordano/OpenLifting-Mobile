@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.openlifting.data.local.dao.AthleteProfileDao
 import com.openlifting.data.local.dao.UserDao
-import com.openlifting.data.local.entity.AthleteProfileEntity
-import com.openlifting.data.local.entity.MvcCalibrationEntity
 import com.openlifting.data.simulator.Esp32Simulator
+import com.openlifting.domain.model.AthleteProfileResult
 import com.openlifting.domain.model.Muscle
 import com.openlifting.domain.model.MuscleSide
+import com.openlifting.domain.model.MvcCalibration
+import com.openlifting.domain.model.MvcCalibrationResult
 import com.openlifting.domain.model.Sex
+import com.openlifting.domain.repository.AthleteProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,16 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-/**
- * Owns the entire onboarding state machine for an athlete:
- *  - draft of AthleteProfile (name + bodyweight + age + sex)
- *  - 10-step MVC calibration (5 muscles x 2 sides)
- *
- * Each onboarding screen reads the slice of state it needs and calls one of the
- * lifecycle methods. The ViewModel persists once: AthleteProfile on submit, the 10
- * MvcCalibration rows + calibratedAt at the end of the capture flow.
- */
 
 data class ProfileDraft(
     val firstName: String     = "",
@@ -54,8 +46,8 @@ data class MvcCaptureUiState(
     val measurements: List<MvcMeasurement>,
     val currentIndex: Int,
     val phase: CapturePhase,
-    val livePct: Float,        // current live bar value (only meaningful in CONTRACT)
-    val countdown: Int,        // 3-2-1 in PREPARE, seconds remaining in CONTRACT
+    val livePct: Float,
+    val countdown: Int,
     val finished: Boolean
 ) {
     val current: MvcMeasurement get() = measurements[currentIndex]
@@ -63,10 +55,19 @@ data class MvcCaptureUiState(
     val stepLabel: String get() = "${currentIndex + 1} / $totalSteps"
 }
 
+sealed interface SubmissionState {
+    data object Idle : SubmissionState
+    data object Submitting : SubmissionState
+    data class FieldErrors(val errors: Map<String, List<String>>) : SubmissionState
+    data class Error(val message: String) : SubmissionState
+    data object NetworkError : SubmissionState
+}
+
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
     private val userDao: UserDao,
     private val athleteProfileDao: AthleteProfileDao,
+    private val athleteProfileRepository: AthleteProfileRepository,
     private val simulator: Esp32Simulator
 ) : ViewModel() {
 
@@ -76,19 +77,19 @@ class OnboardingViewModel @Inject constructor(
     private val _mvc = MutableStateFlow(initialMvcState())
     val mvc: StateFlow<MvcCaptureUiState> = _mvc.asStateFlow()
 
-    /** Persisted profile id, available after [saveProfile] completes OR after [setTargetProfile]. */
+    private val _profileSubmission = MutableStateFlow<SubmissionState>(SubmissionState.Idle)
+    val profileSubmission: StateFlow<SubmissionState> = _profileSubmission.asStateFlow()
+
+    private val _calibrationSubmission = MutableStateFlow<SubmissionState>(SubmissionState.Idle)
+    val calibrationSubmission: StateFlow<SubmissionState> = _calibrationSubmission.asStateFlow()
+
     private var savedProfileId: Long = -1L
 
-    /**
-     * When set, calibration writes to this profile id (used by the instructor flow when
-     * calibrating a guest athlete). Default -1L means "use the logged-in user's profile".
-     */
     fun setTargetProfile(profileId: Long) {
         savedProfileId = profileId
     }
 
     init {
-        // Prefill firstName / lastName from the logged-in User if possible
         viewModelScope.launch {
             val user = userDao.getLoggedInUser() ?: return@launch
             val parts = user.name.trim().split(' ', limit = 2)
@@ -99,50 +100,65 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    // ── Profile draft setters ───────────────────────────────────────────────
-
     fun setFirstName(v: String)   { _profile.value = _profile.value.copy(firstName = v) }
     fun setLastName(v: String)    { _profile.value = _profile.value.copy(lastName = v) }
     fun setBodyweight(v: String)  { _profile.value = _profile.value.copy(bodyweightKg = v.filter { it.isDigit() || it == '.' }) }
     fun setAge(v: String)         { _profile.value = _profile.value.copy(ageYears = v.filter { it.isDigit() }) }
     fun setSex(v: Sex)            { _profile.value = _profile.value.copy(sex = v) }
 
-    /** Persists the profile (without calibration) and returns through [onSaved]. */
+    fun clearProfileSubmissionError() {
+        if (_profileSubmission.value !is SubmissionState.Submitting) {
+            _profileSubmission.value = SubmissionState.Idle
+        }
+    }
+
+    fun clearCalibrationSubmissionError() {
+        if (_calibrationSubmission.value !is SubmissionState.Submitting) {
+            _calibrationSubmission.value = SubmissionState.Idle
+        }
+    }
+
     fun saveProfile(onSaved: () -> Unit) {
         val draft = _profile.value
         if (!draft.isValid) return
         viewModelScope.launch {
-            val user = userDao.getLoggedInUser() ?: return@launch
-
-            val existing = athleteProfileDao.getByUserId(user.id)
-            val entity = AthleteProfileEntity(
-                id            = existing?.id ?: 0L,
-                userId        = user.id,
-                firstName     = draft.firstName.trim(),
-                lastName      = draft.lastName.trim(),
-                bodyweightKg  = draft.bodyweightKg.toFloat(),
-                ageYears      = draft.ageYears.toInt(),
-                sex           = draft.sex.name,
-                calibratedAt  = existing?.calibratedAt   // preserve existing calibration on edit
+            _profileSubmission.value = SubmissionState.Submitting
+            val result = athleteProfileRepository.createProfile(
+                firstName = draft.firstName.trim(),
+                lastName = draft.lastName.trim(),
+                bodyweightKg = draft.bodyweightKg.toDouble(),
+                ageYears = draft.ageYears.toInt(),
+                sex = draft.sex
             )
-            savedProfileId = if (existing == null) {
-                athleteProfileDao.insert(entity)
-            } else {
-                athleteProfileDao.update(entity); existing.id
+            when (result) {
+                is AthleteProfileResult.Success -> {
+                    savedProfileId = result.profile.id
+                    _profileSubmission.value = SubmissionState.Idle
+                    onSaved()
+                }
+                is AthleteProfileResult.ValidationError ->
+                    _profileSubmission.value = SubmissionState.FieldErrors(result.errors)
+                AthleteProfileResult.NotFound ->
+                    _profileSubmission.value = SubmissionState.Error("Recurso no encontrado en el servidor.")
+                AthleteProfileResult.Forbidden ->
+                    _profileSubmission.value = SubmissionState.Error("No tenés permisos para crear un perfil de atleta.")
+                AthleteProfileResult.Unauthorized ->
+                    _profileSubmission.value = SubmissionState.Error("Tu sesión expiró. Volvé a iniciar sesión.")
+                AthleteProfileResult.Throttled ->
+                    _profileSubmission.value = SubmissionState.Error("Demasiados intentos. Esperá un momento.")
+                is AthleteProfileResult.NetworkError ->
+                    _profileSubmission.value = SubmissionState.NetworkError
+                is AthleteProfileResult.ServerError ->
+                    _profileSubmission.value = SubmissionState.Error("Error del servidor (${result.code}).")
             }
-            onSaved()
         }
     }
 
-    // ── MVC capture flow ────────────────────────────────────────────────────
-
-    /** Resets the capture state and starts the first measurement's PREPARE phase. */
     fun startCapture() {
         _mvc.value = initialMvcState()
         runCurrentMeasurement()
     }
 
-    /** Re-runs the current measurement (PREPARE -> CONTRACT -> DONE again). */
     fun repeatCurrent() {
         val s = _mvc.value
         _mvc.value = s.copy(
@@ -156,7 +172,6 @@ class OnboardingViewModel @Inject constructor(
         runCurrentMeasurement()
     }
 
-    /** Advances to the next measurement, or marks the flow as finished. */
     fun next() {
         val s = _mvc.value
         if (s.currentIndex + 1 < s.totalSteps) {
@@ -172,44 +187,67 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Persists the 10 captured MVC values and updates calibratedAt. After this returns,
-     * subsequent sessions will use the captured values as the reference 100%.
-     */
     fun finalizeCalibration(onDone: () -> Unit) {
         viewModelScope.launch {
-            if (savedProfileId == -1L) {
-                val user = userDao.getLoggedInUser() ?: return@launch
-                savedProfileId = athleteProfileDao.getByUserId(user.id)?.id ?: return@launch
+            _calibrationSubmission.value = SubmissionState.Submitting
+
+            val targetProfileId = ensureProfileId()
+            if (targetProfileId == null) {
+                _calibrationSubmission.value =
+                    SubmissionState.Error("No encontramos tu perfil. Reiniciá el flujo.")
+                return@launch
             }
+
             val captured = _mvc.value.measurements.mapNotNull { m ->
                 val v = m.capturedPct ?: return@mapNotNull null
-                MvcCalibrationEntity(
-                    athleteProfileId = savedProfileId,
-                    muscle           = m.muscle.name,
-                    side             = m.side.name,
-                    mvcValue         = v
+                MvcCalibration(
+                    athleteProfileId = targetProfileId,
+                    muscle = m.muscle,
+                    side = m.side,
+                    mvcValue = v
                 )
             }
-            athleteProfileDao.deleteCalibrations(savedProfileId)  // overwrite previous
-            athleteProfileDao.insertCalibrations(captured)
-            athleteProfileDao.markCalibrated(savedProfileId, System.currentTimeMillis())
-            onDone()
+
+            if (captured.isEmpty()) {
+                _calibrationSubmission.value =
+                    SubmissionState.Error("No hay calibraciones para guardar.")
+                return@launch
+            }
+
+            when (val result = athleteProfileRepository.calibrate(captured)) {
+                is MvcCalibrationResult.Success -> {
+                    _calibrationSubmission.value = SubmissionState.Idle
+                    onDone()
+                }
+                is MvcCalibrationResult.ValidationError ->
+                    _calibrationSubmission.value = SubmissionState.FieldErrors(result.errors)
+                MvcCalibrationResult.Forbidden ->
+                    _calibrationSubmission.value = SubmissionState.Error("No tenés permisos para calibrar.")
+                MvcCalibrationResult.Unauthorized ->
+                    _calibrationSubmission.value = SubmissionState.Error("Tu sesión expiró. Volvé a iniciar sesión.")
+                MvcCalibrationResult.Throttled ->
+                    _calibrationSubmission.value = SubmissionState.Error("Demasiados intentos. Esperá un momento.")
+                is MvcCalibrationResult.NetworkError ->
+                    _calibrationSubmission.value = SubmissionState.NetworkError
+                is MvcCalibrationResult.ServerError ->
+                    _calibrationSubmission.value = SubmissionState.Error("Error del servidor (${result.code}).")
+            }
         }
     }
 
-    /** Skip the calibration entirely (defaults will be used until the user calibrates). */
     fun skipCalibration(onDone: () -> Unit) {
-        // We DO NOT mark calibratedAt — leaving the banner active so the user knows their
-        // metrics are approximate.
         onDone()
     }
 
-    // ── Internals ───────────────────────────────────────────────────────────
+    private suspend fun ensureProfileId(): Long? {
+        if (savedProfileId != -1L) return savedProfileId
+        val user = userDao.getLoggedInUser() ?: return null
+        val local = athleteProfileDao.getByUserId(user.id)
+        return local?.id?.also { savedProfileId = it }
+    }
 
     private fun initialMvcState(): MvcCaptureUiState {
         val sequence = buildList {
-            // VL → VM → GMax → ES → BF, each L then R
             for (muscle in listOf(
                 Muscle.VASTUS_LATERALIS, Muscle.VASTUS_MEDIALIS,
                 Muscle.GLUTEUS_MAXIMUS,  Muscle.ERECTOR_SPINAE, Muscle.BICEPS_FEMORIS
@@ -230,13 +268,11 @@ class OnboardingViewModel @Inject constructor(
 
     private fun runCurrentMeasurement() {
         viewModelScope.launch {
-            // PREPARE: 3 -> 2 -> 1
             for (i in 3 downTo 1) {
                 _mvc.value = _mvc.value.copy(phase = CapturePhase.PREPARE, countdown = i, livePct = 0f)
                 delay(800L)
             }
 
-            // CONTRACT: ramp the live bar up to a simulated peak over ~3s, hold briefly, settle
             val s = _mvc.value
             val target = simulator.captureMvc(s.current.muscle, s.current.side)
             _mvc.value = s.copy(phase = CapturePhase.CONTRACT, countdown = 3, livePct = 0f)
@@ -244,13 +280,12 @@ class OnboardingViewModel @Inject constructor(
             val rampSteps = 30
             for (step in 1..rampSteps) {
                 val progress = step.toFloat() / rampSteps
-                val live = (target * (0.6f + 0.4f * progress)).coerceAtMost(target)  // ramp up
+                val live = (target * (0.6f + 0.4f * progress)).coerceAtMost(target)
                 val seconds = (3 - (step * 3 / rampSteps)).coerceAtLeast(0)
                 _mvc.value = _mvc.value.copy(livePct = live, countdown = seconds)
                 delay(80L)
             }
 
-            // DONE: settle at peak, expose captured value, wait for user
             _mvc.value = _mvc.value.copy(
                 phase   = CapturePhase.DONE,
                 livePct = target,

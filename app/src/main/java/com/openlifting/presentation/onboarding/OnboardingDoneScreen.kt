@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -37,6 +38,16 @@ fun OnboardingDoneScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val mvc by viewModel.mvc.collectAsState()
+    val submission by viewModel.calibrationSubmission.collectAsState()
+
+    val isSubmitting = submission is SubmissionState.Submitting
+    val errorMessage = when (val s = submission) {
+        is SubmissionState.Error        -> s.message
+        SubmissionState.NetworkError    -> "No se pudo conectar a Vortex. Verificá tu conexión."
+        is SubmissionState.FieldErrors  -> s.errors.values.firstOrNull()?.firstOrNull()
+            ?: "Validación fallida. Reintentá."
+        else -> null
+    }
 
     val capturedMap: Map<Pair<Muscle, MuscleSide>, Float?> =
         mvc.measurements.associate { (it.muscle to it.side) to it.capturedPct }
@@ -86,11 +97,33 @@ fun OnboardingDoneScreen(
 
             Spacer(Modifier.weight(1f))
 
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
+                )
+            }
+
             Button(
                 onClick  = { viewModel.finalizeCalibration(onDone = onContinue) },
+                enabled  = !isSubmitting,
                 modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
-                Text("Ir al inicio", style = MaterialTheme.typography.labelLarge)
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier   = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color      = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text(
+                        if (errorMessage != null) "Reintentar" else "Ir al inicio",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             }
             Spacer(Modifier.height(24.dp))
         }

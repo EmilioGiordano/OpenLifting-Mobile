@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +48,14 @@ fun OnboardingProfileScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val draft by viewModel.profile.collectAsState()
+    val submission by viewModel.profileSubmission.collectAsState()
+    val isSubmitting = submission is SubmissionState.Submitting
+    val fieldErrors = (submission as? SubmissionState.FieldErrors)?.errors ?: emptyMap()
+    val generalMessage = when (val s = submission) {
+        is SubmissionState.Error    -> s.message
+        SubmissionState.NetworkError -> "No se pudo conectar a Vortex. Verificá tu conexión."
+        else -> null
+    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -77,42 +87,74 @@ fun OnboardingProfileScreen(
 
                 Spacer(Modifier.height(4.dp))
 
-                OutlinedTextField(
+                FieldWithError(
                     value         = draft.firstName,
-                    onValueChange = viewModel::setFirstName,
-                    label         = { Text("Nombre") },
-                    singleLine    = true,
-                    modifier      = Modifier.fillMaxWidth()
+                    onValueChange = {
+                        viewModel.setFirstName(it)
+                        viewModel.clearProfileSubmissionError()
+                    },
+                    label = "Nombre",
+                    error = fieldErrors["first_name"]?.firstOrNull()
                 )
-                OutlinedTextField(
+                FieldWithError(
                     value         = draft.lastName,
-                    onValueChange = viewModel::setLastName,
-                    label         = { Text("Apellido") },
-                    singleLine    = true,
-                    modifier      = Modifier.fillMaxWidth()
+                    onValueChange = {
+                        viewModel.setLastName(it)
+                        viewModel.clearProfileSubmissionError()
+                    },
+                    label = "Apellido",
+                    error = fieldErrors["last_name"]?.firstOrNull()
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedTextField(
-                        value         = draft.bodyweightKg,
-                        onValueChange = viewModel::setBodyweight,
-                        label         = { Text("Peso") },
-                        suffix        = { Text("kg", style = MonoText.labelMedium) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine    = true,
-                        modifier      = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value         = draft.ageYears,
-                        onValueChange = viewModel::setAge,
-                        label         = { Text("Edad") },
-                        suffix        = { Text("años", style = MonoText.labelMedium) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine    = true,
-                        modifier      = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value         = draft.bodyweightKg,
+                            onValueChange = {
+                                viewModel.setBodyweight(it)
+                                viewModel.clearProfileSubmissionError()
+                            },
+                            label         = { Text("Peso") },
+                            isError       = fieldErrors["bodyweight_kg"] != null,
+                            suffix        = { Text("kg", style = MonoText.labelMedium) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine    = true,
+                            modifier      = Modifier.fillMaxWidth()
+                        )
+                        fieldErrors["bodyweight_kg"]?.firstOrNull()?.let {
+                            Text(
+                                it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                            )
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value         = draft.ageYears,
+                            onValueChange = {
+                                viewModel.setAge(it)
+                                viewModel.clearProfileSubmissionError()
+                            },
+                            label         = { Text("Edad") },
+                            isError       = fieldErrors["age_years"] != null,
+                            suffix        = { Text("años", style = MonoText.labelMedium) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine    = true,
+                            modifier      = Modifier.fillMaxWidth()
+                        )
+                        fieldErrors["age_years"]?.firstOrNull()?.let {
+                            Text(
+                                it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(Modifier.height(4.dp))
@@ -129,17 +171,61 @@ fun OnboardingProfileScreen(
                     }
                 }
 
+                if (generalMessage != null) {
+                    Text(
+                        text = generalMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+
                 Spacer(Modifier.height(8.dp))
 
                 Button(
                     onClick = { viewModel.saveProfile(onSaved = onContinue) },
-                    enabled = draft.isValid,
+                    enabled = draft.isValid && !isSubmitting,
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) {
-                    Text("Continuar", style = MaterialTheme.typography.labelLarge)
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier   = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color      = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Continuar", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
                 Spacer(Modifier.height(20.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun FieldWithError(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    error: String?
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value         = value,
+            onValueChange = onValueChange,
+            label         = { Text(label) },
+            singleLine    = true,
+            isError       = error != null,
+            modifier      = Modifier.fillMaxWidth()
+        )
+        if (error != null) {
+            Text(
+                text  = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+            )
         }
     }
 }
