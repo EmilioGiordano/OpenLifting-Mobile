@@ -52,7 +52,9 @@ import com.patrykandpatrick.vico.compose.cartesian.cartesianLayerPadding
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.core.common.shape.CorneredShape
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -140,18 +142,21 @@ fun ActivationChartCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Column(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
+            ) {
                 Text(
                     text  = "ACTIVACIÓN MUSCULAR",
                     style = MonoText.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.08.sp),
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text  = "${repActivations.size} reps · eje Y = %MVC · eje X = repetición",
+                    text  = "${repActivations.size} reps · %MVC",
                     style = MonoText.labelSmall,
                     color = MaterialTheme.olExtras.ink3
                 )
@@ -170,9 +175,16 @@ fun ActivationChartCard(
                 rememberLineCartesianLayer(
                     lineProvider = LineCartesianLayer.LineProvider.series(
                         lineColors.map { color ->
+                            val pointComponent = rememberShapeComponent(
+                                fill  = fill(color),
+                                shape = CorneredShape.Pill
+                            )
                             LineCartesianLayer.rememberLine(
-                                fill   = LineCartesianLayer.LineFill.single(fill(color)),
-                                stroke = LineCartesianLayer.LineStroke.Continuous(thicknessDp = 2f),
+                                fill          = LineCartesianLayer.LineFill.single(fill(color)),
+                                stroke        = LineCartesianLayer.LineStroke.Continuous(thicknessDp = 2f),
+                                pointProvider = LineCartesianLayer.PointProvider.single(
+                                    LineCartesianLayer.Point(component = pointComponent, sizeDp = 6f)
+                                ),
                             )
                         }
                     ),
@@ -298,21 +310,24 @@ private fun BilateralNav(
     val derColor   = if (riskColor != null && weaker == "der") riskColor else colorDer
     val deltaColor = riskColor ?: MaterialTheme.olExtras.ink3
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        // Muscle nav
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onPrev, enabled = muscleIdx > 0, modifier = Modifier.size(28.dp)) {
+        // IZQ + muscle nav + DER — truly centered cluster
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SideValue(label = "IZQ", value = avgLeft, color = izqColor)
+
+            IconButton(onClick = onPrev, enabled = muscleIdx > 0, modifier = Modifier.size(24.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Anterior",
-                    modifier = Modifier.size(16.dp), tint = MaterialTheme.olExtras.ink3)
+                    modifier = Modifier.size(14.dp), tint = MaterialTheme.olExtras.ink3)
             }
-            Spacer(Modifier.width(6.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text  = muscle.displayName,
@@ -325,26 +340,21 @@ private fun BilateralNav(
                     color = MaterialTheme.olExtras.ink3
                 )
             }
-            Spacer(Modifier.width(6.dp))
-            IconButton(onClick = onNext, enabled = muscleIdx < muscleOrder.lastIndex, modifier = Modifier.size(28.dp)) {
+            IconButton(onClick = onNext, enabled = muscleIdx < muscleOrder.lastIndex, modifier = Modifier.size(24.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Siguiente",
-                    modifier = Modifier.size(16.dp), tint = MaterialTheme.olExtras.ink3)
+                    modifier = Modifier.size(14.dp), tint = MaterialTheme.olExtras.ink3)
             }
+
+            SideValue(label = "DER", value = avgRight, color = derColor)
         }
 
-        // IZQ / DER / Δ — right side
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SideValue(label = "IZQ", value = avgLeft,  color = izqColor)
-            SideValue(label = "DER", value = avgRight, color = derColor)
-            Text(
-                text  = "Δ $delta%",
-                style = MonoText.labelSmall.copy(fontWeight = FontWeight.Medium),
-                color = deltaColor
-            )
-        }
+        // Δ — pinned to right corner
+        Text(
+            text  = "Δ $delta%",
+            style = MonoText.labelSmall.copy(fontWeight = FontWeight.Medium),
+            color = deltaColor,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        )
     }
 }
 
