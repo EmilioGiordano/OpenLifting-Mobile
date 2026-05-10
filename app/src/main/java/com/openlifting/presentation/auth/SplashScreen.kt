@@ -18,12 +18,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.openlifting.domain.model.UserRole
+import com.openlifting.domain.usecase.auth.StartRoute
 import com.openlifting.ui.theme.olExtras
 
 @Composable
 fun SplashScreen(
-    onSessionFound: (UserRole) -> Unit,
+    onSessionFound: (StartRoute) -> Unit,
     onNoSession: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
@@ -31,7 +31,7 @@ fun SplashScreen(
         viewModel.checkSession()
         viewModel.uiState.collect { state ->
             when (state) {
-                is LoginUiState.Success -> onSessionFound(state.role)
+                is LoginUiState.Success -> onSessionFound(state.route)
                 LoginUiState.Idle       -> onNoSession()
                 else                    -> Unit
             }

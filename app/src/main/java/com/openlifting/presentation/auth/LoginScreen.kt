@@ -31,11 +31,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.openlifting.domain.model.UserRole
+import com.openlifting.domain.usecase.auth.StartRoute
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (UserRole) -> Unit,
+    onLoginSuccess: (StartRoute) -> Unit,
     onNavigateToRegister: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
@@ -45,7 +45,7 @@ fun LoginScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is LoginUiState.Success) {
-            onLoginSuccess((uiState as LoginUiState.Success).role)
+            onLoginSuccess((uiState as LoginUiState.Success).route)
         }
     }
 
