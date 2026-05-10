@@ -106,7 +106,8 @@ fun AppNavGraph() {
                         popUpTo(Route.ATHLETE_ROOT) { inclusive = true }
                     }
                 },
-                onStartRecalibration = { navController.navigate(Route.RECALIBRATE) }
+                onStartRecalibration = { navController.navigate(Route.RECALIBRATE) },
+                onStartProfileSetup  = { navController.navigate(Route.ONBOARDING) }
             )
         }
 

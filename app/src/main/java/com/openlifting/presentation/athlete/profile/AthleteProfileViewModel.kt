@@ -11,12 +11,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+sealed interface AthleteProfileUiState {
+    data object Loading : AthleteProfileUiState
+    data object Missing : AthleteProfileUiState
+    data class Loaded(val profile: AthleteProfile) : AthleteProfileUiState
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -29,17 +36,24 @@ class AthleteProfileViewModel @Inject constructor(
         emit(userDao.getLoggedInUser()?.id)
     }
 
-    val athleteProfile: StateFlow<AthleteProfile?> =
-        userIdFlow.flatMapLatest { id ->
-            if (id == null) flowOf(null) else repository.observeCachedProfile(id)
+    private val cachedProfile = userIdFlow.flatMapLatest { id ->
+        if (id == null) flowOf(null) else repository.observeCachedProfile(id)
+    }
+
+    private val _initialFetchDone = MutableStateFlow(false)
+
+    val uiState: StateFlow<AthleteProfileUiState> =
+        combine(cachedProfile, _initialFetchDone) { profile, fetched ->
+            when {
+                profile != null -> AthleteProfileUiState.Loaded(profile)
+                !fetched        -> AthleteProfileUiState.Loading
+                else            -> AthleteProfileUiState.Missing
+            }
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = null
+            initialValue = AthleteProfileUiState.Loading
         )
-
-    private val _refreshing = MutableStateFlow(false)
-    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
 
     init {
         refresh()
@@ -47,9 +61,8 @@ class AthleteProfileViewModel @Inject constructor(
 
     fun refresh() {
         viewModelScope.launch {
-            _refreshing.value = true
             repository.fetchProfile()
-            _refreshing.value = false
+            _initialFetchDone.value = true
         }
     }
 }

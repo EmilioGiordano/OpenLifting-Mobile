@@ -45,7 +45,8 @@ private val athleteTabs = listOf(
 fun AthleteScaffold(
     onLogout: () -> Unit,
     onSwitchToInstructor: () -> Unit,
-    onStartRecalibration: () -> Unit = {}
+    onStartRecalibration: () -> Unit = {},
+    onStartProfileSetup: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val navBackStack by navController.currentBackStackEntryAsState()
@@ -80,7 +81,8 @@ fun AthleteScaffold(
             innerPadding = innerPadding,
             onLogout = onLogout,
             onSwitchToInstructor = onSwitchToInstructor,
-            onStartRecalibration = onStartRecalibration
+            onStartRecalibration = onStartRecalibration,
+            onStartProfileSetup = onStartProfileSetup
         )
     }
 }
@@ -108,7 +110,8 @@ private fun AthleteNavHost(
     innerPadding: androidx.compose.foundation.layout.PaddingValues,
     onLogout: () -> Unit,
     onSwitchToInstructor: () -> Unit,
-    onStartRecalibration: () -> Unit
+    onStartRecalibration: () -> Unit,
+    onStartProfileSetup: () -> Unit
 ) {
     NavHost(
         navController = navController,
@@ -153,7 +156,8 @@ private fun AthleteNavHost(
                 onLogout             = onLogout,
                 onSwitchToInstructor = onSwitchToInstructor,
                 onRecalibrate        = onStartRecalibration,
-                onEditProfile        = { navController.navigate("athlete/profile/edit") }
+                onEditProfile        = { navController.navigate("athlete/profile/edit") },
+                onSetupProfile       = onStartProfileSetup
             )
         }
 

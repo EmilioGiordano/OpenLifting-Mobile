@@ -34,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.openlifting.domain.model.AthleteProfile
 import com.openlifting.domain.model.ThemeMode
 import com.openlifting.presentation.common.profile.ProfileViewModel
 import com.openlifting.ui.theme.MonoText
@@ -46,12 +45,13 @@ fun AthleteProfileScreen(
     onSwitchToInstructor: () -> Unit,
     onRecalibrate: () -> Unit = {},
     onEditProfile: () -> Unit = {},
+    onSetupProfile: () -> Unit = {},
     profileViewModel: ProfileViewModel = hiltViewModel(),
     athleteViewModel: AthleteProfileViewModel = hiltViewModel()
 ) {
     val user      by profileViewModel.user.collectAsState()
     val themeMode by profileViewModel.themeMode.collectAsState()
-    val athlete   by athleteViewModel.athleteProfile.collectAsState()
+    val athleteState by athleteViewModel.uiState.collectAsState()
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -70,13 +70,25 @@ fun AthleteProfileScreen(
             ProfileIdentityCard(name = user?.name ?: "—", email = user?.email ?: "—")
 
             ProfileSection(label = "DATOS FÍSICOS") {
-                AthleteDataCard(profile = athlete)
-                OutlinedButton(
-                    onClick  = onEditProfile,
-                    enabled  = athlete != null,
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
-                ) {
-                    Text("Editar datos")
+                AthleteDataCard(state = athleteState)
+                when (athleteState) {
+                    is AthleteProfileUiState.Loaded -> {
+                        OutlinedButton(
+                            onClick  = onEditProfile,
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Text("Editar datos")
+                        }
+                    }
+                    AthleteProfileUiState.Missing -> {
+                        OutlinedButton(
+                            onClick  = onSetupProfile,
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Text("Configurar perfil")
+                        }
+                    }
+                    AthleteProfileUiState.Loading -> Unit
                 }
             }
 
@@ -120,7 +132,7 @@ fun AthleteProfileScreen(
 }
 
 @Composable
-private fun AthleteDataCard(profile: AthleteProfile?) {
+private fun AthleteDataCard(state: AthleteProfileUiState) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -130,17 +142,32 @@ private fun AthleteDataCard(profile: AthleteProfile?) {
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (profile == null) {
-            Text(
-                text  = "Cargando datos…",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            DataRow("Nombre", "${profile.firstName} ${profile.lastName}")
-            DataRow("Peso", "${profile.bodyweightKg.toInt()} kg", mono = true)
-            DataRow("Edad", "${profile.ageYears} años", mono = true)
-            DataRow("Sexo", profile.sex.displayName)
+        when (state) {
+            AthleteProfileUiState.Loading -> {
+                Text(
+                    text  = "Cargando datos…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            AthleteProfileUiState.Missing -> {
+                Text(
+                    text  = "Aún no completaste tus datos físicos.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text  = "Sin estos datos, los análisis usan valores de referencia genéricos.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            is AthleteProfileUiState.Loaded -> {
+                val profile = state.profile
+                DataRow("Peso", "${profile.bodyweightKg.toInt()} kg", mono = true)
+                DataRow("Edad", "${profile.ageYears} años", mono = true)
+                DataRow("Sexo", profile.sex.displayName)
+            }
         }
     }
 }
