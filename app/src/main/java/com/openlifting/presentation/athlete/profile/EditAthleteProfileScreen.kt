@@ -89,7 +89,7 @@ fun EditAthleteProfileScreen(
                         viewModel.clearError()
                     },
                     label = "Nombre",
-                    error = fieldErrors["first_name"]?.firstOrNull()
+                    error = draft.firstNameError ?: fieldErrors["first_name"]?.firstOrNull()
                 )
                 FieldWithError(
                     value = draft.lastName,
@@ -98,13 +98,14 @@ fun EditAthleteProfileScreen(
                         viewModel.clearError()
                     },
                     label = "Apellido",
-                    error = fieldErrors["last_name"]?.firstOrNull()
+                    error = draft.lastNameError ?: fieldErrors["last_name"]?.firstOrNull()
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
+                        val bwError = draft.bodyweightError ?: fieldErrors["bodyweight_kg"]?.firstOrNull()
                         OutlinedTextField(
                             value = draft.bodyweightKg,
                             onValueChange = {
@@ -112,19 +113,20 @@ fun EditAthleteProfileScreen(
                                 viewModel.clearError()
                             },
                             label = { Text("Peso") },
-                            isError = fieldErrors["bodyweight_kg"] != null,
+                            isError = bwError != null,
                             suffix = { Text("kg", style = MonoText.labelMedium) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-                        fieldErrors["bodyweight_kg"]?.firstOrNull()?.let {
+                        bwError?.let {
                             Text(it, color = MaterialTheme.colorScheme.error,
                                  style = MaterialTheme.typography.bodySmall,
                                  modifier = Modifier.padding(start = 4.dp, top = 4.dp))
                         }
                     }
                     Column(modifier = Modifier.weight(1f)) {
+                        val ageErr = draft.ageError ?: fieldErrors["age_years"]?.firstOrNull()
                         OutlinedTextField(
                             value = draft.ageYears,
                             onValueChange = {
@@ -132,13 +134,13 @@ fun EditAthleteProfileScreen(
                                 viewModel.clearError()
                             },
                             label = { Text("Edad") },
-                            isError = fieldErrors["age_years"] != null,
+                            isError = ageErr != null,
                             suffix = { Text("años", style = MonoText.labelMedium) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
-                        fieldErrors["age_years"]?.firstOrNull()?.let {
+                        ageErr?.let {
                             Text(it, color = MaterialTheme.colorScheme.error,
                                  style = MaterialTheme.typography.bodySmall,
                                  modifier = Modifier.padding(start = 4.dp, top = 4.dp))

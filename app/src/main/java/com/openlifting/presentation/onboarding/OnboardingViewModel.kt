@@ -27,11 +27,34 @@ data class ProfileDraft(
     val ageYears: String       = "",
     val sex: Sex               = Sex.MALE
 ) {
+    val firstNameError: String? get() = when {
+        firstName.isBlank() -> null
+        firstName.length > 100 -> "Máximo 100 caracteres."
+        else -> null
+    }
+    val lastNameError: String? get() = when {
+        lastName.isBlank() -> null
+        lastName.length > 100 -> "Máximo 100 caracteres."
+        else -> null
+    }
+    val bodyweightError: String? get() = when {
+        bodyweightKg.isBlank() -> null
+        bodyweightKg.toFloatOrNull() == null -> "Ingresá un número válido."
+        bodyweightKg.toFloat() !in 30f..300f -> "El peso debe estar entre 30 y 300 kg."
+        else -> null
+    }
+    val ageError: String? get() = when {
+        ageYears.isBlank() -> null
+        ageYears.toIntOrNull() == null -> "Ingresá un número entero."
+        ageYears.toInt() !in 14..100 -> "La edad debe estar entre 14 y 100 años."
+        else -> null
+    }
+
     val isValid: Boolean
-        get() = firstName.isNotBlank() &&
-                lastName.isNotBlank() &&
-                (bodyweightKg.toFloatOrNull()?.let { it in 30f..250f } ?: false) &&
-                (ageYears.toIntOrNull()?.let { it in 10..90 } ?: false)
+        get() = firstName.isNotBlank() && firstNameError == null &&
+                lastName.isNotBlank() && lastNameError == null &&
+                bodyweightKg.isNotBlank() && bodyweightError == null &&
+                ageYears.isNotBlank() && ageError == null
 }
 
 enum class CapturePhase { PREPARE, CONTRACT, DONE }

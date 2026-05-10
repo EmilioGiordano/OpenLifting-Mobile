@@ -71,14 +71,33 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun `bodyweight outside 30-250 kg range is invalid`() = runTest {
+    fun `bodyweight outside 30-300 kg range is invalid`() = runTest {
         val vm = build()
         advanceUntilIdle()
         vm.setAge("28")
 
         vm.setBodyweight("25");  assertFalse(vm.profile.value.isValid)
-        vm.setBodyweight("251"); assertFalse(vm.profile.value.isValid)
+        vm.setBodyweight("301"); assertFalse(vm.profile.value.isValid)
         vm.setBodyweight("80");  assertTrue (vm.profile.value.isValid)
+    }
+
+    @Test
+    fun `age outside 14-100 range is invalid`() = runTest {
+        val vm = build()
+        advanceUntilIdle()
+        vm.setBodyweight("80")
+
+        vm.setAge("13");  assertFalse(vm.profile.value.isValid)
+        vm.setAge("101"); assertFalse(vm.profile.value.isValid)
+        vm.setAge("28");  assertTrue (vm.profile.value.isValid)
+    }
+
+    @Test
+    fun `bodyweight error message describes the range`() = runTest {
+        val vm = build()
+        vm.setBodyweight("999")
+        assertTrue(vm.profile.value.bodyweightError!!.contains("30") &&
+                   vm.profile.value.bodyweightError!!.contains("300"))
     }
 
     // ── Profile save ───────────────────────────────────────────────────────

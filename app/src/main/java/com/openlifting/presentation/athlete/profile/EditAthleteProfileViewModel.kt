@@ -22,11 +22,34 @@ data class EditProfileDraft(
     val sex: Sex = Sex.MALE,
     val loaded: Boolean = false
 ) {
+    val firstNameError: String? get() = when {
+        firstName.isBlank() -> null
+        firstName.length > 100 -> "Máximo 100 caracteres."
+        else -> null
+    }
+    val lastNameError: String? get() = when {
+        lastName.isBlank() -> null
+        lastName.length > 100 -> "Máximo 100 caracteres."
+        else -> null
+    }
+    val bodyweightError: String? get() = when {
+        bodyweightKg.isBlank() -> null
+        bodyweightKg.toDoubleOrNull() == null -> "Ingresá un número válido."
+        bodyweightKg.toDouble() !in 30.0..300.0 -> "El peso debe estar entre 30 y 300 kg."
+        else -> null
+    }
+    val ageError: String? get() = when {
+        ageYears.isBlank() -> null
+        ageYears.toIntOrNull() == null -> "Ingresá un número entero."
+        ageYears.toInt() !in 14..100 -> "La edad debe estar entre 14 y 100 años."
+        else -> null
+    }
+
     val isValid: Boolean
-        get() = firstName.isNotBlank() &&
-                lastName.isNotBlank() &&
-                (bodyweightKg.toDoubleOrNull()?.let { it in 30.0..300.0 } ?: false) &&
-                (ageYears.toIntOrNull()?.let { it in 14..100 } ?: false)
+        get() = firstName.isNotBlank() && firstNameError == null &&
+                lastName.isNotBlank() && lastNameError == null &&
+                bodyweightKg.isNotBlank() && bodyweightError == null &&
+                ageYears.isNotBlank() && ageError == null
 }
 
 @HiltViewModel
