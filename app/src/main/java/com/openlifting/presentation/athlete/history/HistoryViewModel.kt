@@ -7,6 +7,7 @@ import com.openlifting.data.local.dao.SetDao
 import com.openlifting.data.local.dao.UserDao
 import com.openlifting.data.mapper.toDomain
 import com.openlifting.domain.model.RiskLevel
+import com.openlifting.domain.repository.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SessionHistoryItem(
@@ -31,8 +33,21 @@ data class SessionHistoryItem(
 class HistoryViewModel @Inject constructor(
     private val userDao: UserDao,
     private val sessionDao: SessionDao,
-    private val setDao: SetDao
+    private val setDao: SetDao,
+    private val sessionRepository: SessionRepository
 ) : ViewModel() {
+
+    init {
+        viewModelScope.launch {
+            userDao.getLoggedInUser()?.let { sessionRepository.syncSessionsFromBackend(it.id) }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            userDao.getLoggedInUser()?.let { sessionRepository.syncSessionsFromBackend(it.id) }
+        }
+    }
 
     val sessions: StateFlow<List<SessionHistoryItem>> =
         flow { emit(userDao.getLoggedInUser()) }

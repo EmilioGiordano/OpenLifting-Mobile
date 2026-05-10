@@ -10,6 +10,7 @@ import com.openlifting.data.local.entity.SetMetricsEntity
 import com.openlifting.data.websocket.EmgDataSourceWithFallback
 import com.openlifting.domain.datasource.EmgDataSource
 import com.openlifting.domain.datasource.StartSetRequest
+import com.openlifting.domain.model.DeviceSource
 import com.openlifting.domain.model.EmgEvent
 import com.openlifting.domain.model.Muscle
 import com.openlifting.domain.model.MusclePair
@@ -125,6 +126,14 @@ class SessionViewModel @Inject constructor(
     private var sessionLocalId: Long = -1L
     private var currentSetNumber: Int = 1
     private var lastCompletedAnalysis: SessionUiState.AnalysisReady? = null
+
+    /**
+     * True once the session has been confirmed as REAL on the backend (PATCH succeeded
+     * after a set ran via WebSocket). Once locked, subsequent fallbacks to the simulator
+     * do NOT downgrade the session — we treat "the WS worked at least once" as evidence
+     * the session was real-equipped, even if connectivity flickered later.
+     */
+    private var deviceSourceLockedAsReal: Boolean = false
 
     /**
      * Override athlete user id for instructor-driven sessions. When null, the session is
@@ -288,6 +297,17 @@ class SessionViewModel @Inject constructor(
                 recommendations  = result.recommendations
             )
 
+            // Sync the actual EMG source back to Vortex. The session row was created
+            // with `device_source = SIMULATED` (backend default) before we knew which
+            // path the EMG would take. Once the WS proves it works for a set, lock
+            // the session to REAL so it shows up correctly in history/analytics.
+            val fallbackSource = emgDataSource as? EmgDataSourceWithFallback
+            val realDataReceived = fallbackSource?.fallbackUsed() == false
+            if (realDataReceived && !deviceSourceLockedAsReal) {
+                sessionRepository.updateSessionDeviceSource(sessionLocalId, DeviceSource.REAL)
+                deviceSourceLockedAsReal = true
+            }
+
             val summaryMap = buildMap {
                 Muscle.entries.forEach { muscle ->
                     val leftAvg = capturedActivations.flatten()
@@ -416,6 +436,7 @@ class SessionViewModel @Inject constructor(
         sessionLocalId = -1L
         currentSetNumber = 1
         lastCompletedAnalysis = null
+        deviceSourceLockedAsReal = false
         _uiState.value = SessionUiState.MetadataEntry
     }
 

@@ -34,6 +34,9 @@ interface SessionDao {
     @Query("UPDATE training_sessions SET serverId = :serverId, synced = 1 WHERE localId = :localId")
     suspend fun markSynced(localId: Long, serverId: Long)
 
+    @Query("SELECT * FROM training_sessions WHERE serverId = :serverId LIMIT 1")
+    suspend fun getByServerId(serverId: Long): TrainingSessionEntity?
+
     @Query("SELECT * FROM training_sessions WHERE athleteUserId = :userId ORDER BY startedAt DESC LIMIT 1")
     suspend fun getLastSession(userId: Long): TrainingSessionEntity?
 
