@@ -553,7 +553,7 @@ private fun BarsMuscleRow(
             // Muscle code, mono small
             Text(
                 text  = shortName,
-                style = MonoText.labelSmall.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.4.sp),
+                style = MonoText.labelSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.width(28.dp)
             )
