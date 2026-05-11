@@ -77,8 +77,10 @@ private val muscleColors = mapOf(
     Muscle.BICEPS_FEMORIS   to Color(0xFFDB2777), // pink (hue ~326, claramente distinto del risk red)
 )
 
-private val colorIzq = Color(0xFF0D9373)
-private val colorDer = Color(0xFF4A90C4)
+// Modo bilateral: emerald + royal blue, los dos hues más fuertes de la paleta general,
+// para que IZQ vs DER sea inmediatamente reconocible y coordinado con el modo general.
+private val colorIzq = Color(0xFF0D9373) // emerald (= VL)
+private val colorDer = Color(0xFF2563EB) // royal blue (= VM)
 
 private val muscleOrder = Muscle.entries
 
