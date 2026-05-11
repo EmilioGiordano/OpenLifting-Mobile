@@ -36,5 +36,13 @@ data class AthleteProfileEntity(
      * guest claims their data via QR transfer, this is cleared and userId is updated
      * to the real athlete's user id.
      */
-    val guestOfInstructorId: Long? = null
+    val guestOfInstructorId: Long? = null,
+
+    /**
+     * Server id of the corresponding `guest_profiles` row on Vortex. Only set for profiles
+     * created via [com.openlifting.data.repository.VortexCoachRepository]. Used by session
+     * and calibration repositories to route requests to the instructor-side endpoints
+     * (`/api/instructor/guests/{id}/...` and `/api/instructor/sessions`).
+     */
+    val guestProfileServerId: Long? = null
 )

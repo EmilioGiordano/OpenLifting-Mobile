@@ -2,8 +2,10 @@ package com.openlifting.data.repository
 
 import androidx.room.withTransaction
 import com.openlifting.data.local.OpenLiftingDatabase
+import com.openlifting.data.local.dao.AthleteProfileDao
 import com.openlifting.data.local.dao.SessionDao
 import com.openlifting.data.local.dao.SetDao
+import com.openlifting.data.remote.api.VortexInstructorApi
 import com.openlifting.data.local.entity.TrainingSessionEntity
 import com.openlifting.data.local.entity.TrainingSetEntity
 import com.openlifting.data.remote.api.VortexSessionApi
@@ -47,9 +49,13 @@ class SessionRepositoryImplTest {
     private val db        = mockk<OpenLiftingDatabase>(relaxed = true)
     private val sessionDao = mockk<SessionDao>(relaxed = true)
     private val setDao    = mockk<SetDao>(relaxed = true)
+    private val athleteProfileDao = mockk<AthleteProfileDao>(relaxed = true)
     private val sessionApi = mockk<VortexSessionApi>()
+    private val instructorApi = mockk<VortexInstructorApi>(relaxed = true)
 
-    private fun build() = SessionRepositoryImpl(db, sessionDao, setDao, sessionApi)
+    private fun build() = SessionRepositoryImpl(
+        db, sessionDao, setDao, athleteProfileDao, sessionApi, instructorApi
+    )
 
     /**
      * `db.withTransaction { ... }` is a suspend extension defined in `androidx.room`.
@@ -63,6 +69,8 @@ class SessionRepositoryImplTest {
         coEvery { db.withTransaction(any<suspend () -> Any?>()) } coAnswers {
             secondArg<suspend () -> Any?>().invoke()
         }
+        // Default: athlete is not a guest. Tests that exercise the guest branch override this.
+        coEvery { athleteProfileDao.getByUserId(any()) } returns null
     }
 
     @After

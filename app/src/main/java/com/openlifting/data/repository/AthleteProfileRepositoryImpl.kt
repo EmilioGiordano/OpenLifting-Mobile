@@ -6,15 +6,22 @@ import com.openlifting.data.local.entity.MvcCalibrationEntity
 import com.openlifting.data.mapper.toApiInput
 import com.openlifting.data.mapper.toDomain
 import com.openlifting.data.mapper.toEntity
+import com.openlifting.data.local.dao.SessionDao
+import com.openlifting.data.local.entity.TrainingSessionEntity
+import com.openlifting.data.mapper.toEntity
 import com.openlifting.data.remote.api.VortexAthleteApi
+import com.openlifting.domain.repository.SessionRepository
 import com.openlifting.data.remote.dto.AthleteProfileDto
+import com.openlifting.data.remote.dto.ClaimRequest
 import com.openlifting.data.remote.dto.CreateAthleteProfileRequest
 import com.openlifting.data.remote.dto.MvcCalibrationDto
 import com.openlifting.data.remote.dto.StoreMvcCalibrationsRequest
+import com.openlifting.data.remote.dto.TrainingSessionDto
 import com.openlifting.data.remote.dto.UpdateAthleteProfileRequest
 import com.openlifting.data.remote.dto.ValidationErrorResponse
 import com.openlifting.domain.model.AthleteProfile
 import com.openlifting.domain.model.AthleteProfileResult
+import com.openlifting.domain.model.ClaimRedeemResult
 import com.openlifting.domain.model.MvcCalibration
 import com.openlifting.domain.model.MvcCalibrationResult
 import com.openlifting.domain.model.Sex
@@ -30,6 +37,8 @@ class AthleteProfileRepositoryImpl @Inject constructor(
     private val api: VortexAthleteApi,
     private val athleteProfileDao: AthleteProfileDao,
     private val userDao: UserDao,
+    private val sessionDao: SessionDao,
+    private val sessionRepository: SessionRepository,
     private val json: Json
 ) : AthleteProfileRepository {
 
@@ -87,6 +96,61 @@ class AthleteProfileRepositoryImpl @Inject constructor(
 
     override suspend fun getCachedProfile(userId: Long): AthleteProfile? =
         athleteProfileDao.getByUserId(userId)?.toDomain()
+
+    override suspend fun claimSession(code: String): ClaimRedeemResult {
+        val response = try {
+            api.claim(ClaimRequest(code = code))
+        } catch (e: IOException) { return ClaimRedeemResult.NetworkError(e) }
+          catch (e: Exception)   { return ClaimRedeemResult.NetworkError(e) }
+
+        if (!response.isSuccessful) return when (response.code()) {
+            403  -> ClaimRedeemResult.Forbidden
+            404  -> ClaimRedeemResult.NotFound
+            410  -> ClaimRedeemResult.ExpiredOrUsed
+            422  -> parseClaimValidation(response)
+            429  -> ClaimRedeemResult.Throttled
+            else -> ClaimRedeemResult.ServerError(response.code())
+        }
+        val sessionDto = response.body() ?: return ClaimRedeemResult.ServerError(response.code())
+
+        // Mirror the transferred session into Room. POST /api/claim returns the flat session
+        // (no nested sets), so we first persist the session shell and then chain a GET to
+        // /api/sessions/{id} to hydrate sets + reps + activations + metrics + recommendations.
+        val user = userDao.getLoggedInUser() ?: return ClaimRedeemResult.ServerError(0)
+        val existingLocal = sessionDao.getByServerId(sessionDto.id)
+        val entity = sessionDto.toEntity(
+            athleteUserId    = user.id,
+            instructorUserId = existingLocal?.instructorUserId,
+            existingLocalId  = existingLocal?.localId ?: 0
+        )
+        val sessionLocalId = if (existingLocal == null) {
+            sessionDao.insert(entity)
+        } else {
+            sessionDao.update(entity); existingLocal.localId
+        }
+
+        // Pull the full session tree so the athlete sees their sets / metrics in History.
+        // Failure here is non-fatal — the claim already succeeded; we surface the empty
+        // session and let the user retry later (e.g. via "Reclamar" or a future sync action).
+        runCatching { sessionRepository.hydrateSessionFromBackend(sessionDto.id) }
+
+        // Refresh the athlete profile from backend so any newly copied first_name / bodyweight
+        // shows up in the UI. Failure is non-fatal — the claim itself succeeded.
+        runCatching { fetchProfile() }
+
+        return ClaimRedeemResult.Success(sessionLocalId = sessionLocalId)
+    }
+
+    private fun parseClaimValidation(response: retrofit2.Response<TrainingSessionDto>): ClaimRedeemResult {
+        val raw = response.errorBody()?.string().orEmpty()
+        val parsed = try {
+            json.decodeFromString(ValidationErrorResponse.serializer(), raw)
+        } catch (_: Exception) {
+            return ClaimRedeemResult.ValidationError(mapOf("_" to listOf("Validación falló.")))
+        }
+        val errors = parsed.errors.ifEmpty { mapOf("_" to listOf(parsed.message)) }
+        return ClaimRedeemResult.ValidationError(errors)
+    }
 
     // ── persistence ───────────────────────────────────────────────────────────
 

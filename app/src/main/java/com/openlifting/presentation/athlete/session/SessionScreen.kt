@@ -44,11 +44,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -103,7 +106,8 @@ fun SessionScreen(
                 )
                 is SessionUiState.SessionSummary -> SummaryContent(
                     state = state,
-                    onExit = { viewModel.exitSummary(onFinish) }
+                    onExit = { viewModel.exitSummary(onFinish) },
+                    onGenerateClaimCode = viewModel::generateClaimCode
                 )
                 is SessionUiState.Error -> ErrorContent(state.message)
             }
@@ -722,7 +726,8 @@ private fun AnalysisContent(
 @Composable
 private fun SummaryContent(
     state: SessionUiState.SessionSummary,
-    onExit: () -> Unit
+    onExit: () -> Unit,
+    onGenerateClaimCode: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -806,6 +811,19 @@ private fun SummaryContent(
             items(state.topRecommendations) { rec -> RecommendationCard(rec) }
         }
 
+        // Guest session: claim code card
+        if (state.isGuestSession) {
+            item {
+                Text(
+                    text  = "Reclamo",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            item { ClaimCodeCard(banner = state.claimCode, onGenerate = onGenerateClaimCode) }
+        }
+
         // Exit
         item {
             Spacer(Modifier.height(8.dp))
@@ -816,6 +834,90 @@ private fun SummaryContent(
                 Text("Volver al inicio", style = MaterialTheme.typography.labelLarge)
             }
             Spacer(Modifier.height(20.dp))
+        }
+    }
+}
+
+@Composable
+private fun ClaimCodeCard(banner: ClaimCodeBanner?, onGenerate: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text  = "Vincular esta sesión a una cuenta",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text  = "Si tu atleta tiene cuenta en OpenLifting, generá un código de 8 caracteres y pasáselo. Vence en 5 minutos.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        if (banner != null && banner.code.isNotBlank()) {
+            val remaining = remember(banner.expiresAtEpochMs) { mutableStateOf(0L) }
+            LaunchedEffect(banner.expiresAtEpochMs) {
+                while (true) {
+                    val left = banner.expiresAtEpochMs - System.currentTimeMillis()
+                    remaining.value = left.coerceAtLeast(0L)
+                    if (left <= 0L) break
+                    delay(1_000L)
+                }
+            }
+            val seconds = (remaining.value / 1000L).toInt()
+            val mm = seconds / 60
+            val ss = seconds % 60
+            Text(
+                text  = banner.code,
+                style = MonoText.displayMedium,
+                color = MaterialTheme.olExtras.emerald,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.olExtras.emeraldSoft, RoundedCornerShape(8.dp))
+                    .padding(vertical = 16.dp),
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text  = if (seconds > 0) "Vence en %d:%02d".format(mm, ss) else "Código expirado",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (seconds > 0) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+        }
+
+        if (banner?.errorMessage != null) {
+            Text(
+                text  = banner.errorMessage,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(8.dp))
+                    .padding(12.dp)
+            )
+        }
+
+        OutlinedButton(
+            onClick  = onGenerate,
+            enabled  = banner?.isGenerating != true,
+            modifier = Modifier.fillMaxWidth().height(48.dp)
+        ) {
+            if (banner?.isGenerating == true) {
+                CircularProgressIndicator(
+                    modifier   = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(if (banner?.code.isNullOrBlank()) "Generar código" else "Regenerar código")
+            }
         }
     }
 }

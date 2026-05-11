@@ -1,5 +1,6 @@
 package com.openlifting.presentation.instructor.guest
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -46,8 +48,10 @@ fun CreateGuestScreen(
     onCancel: () -> Unit,
     viewModel: CreateGuestViewModel = hiltViewModel()
 ) {
-    val draft     by viewModel.draft.collectAsState()
-    val isSaving  by viewModel.isSaving.collectAsState()
+    val draft           by viewModel.draft.collectAsState()
+    val isSaving        by viewModel.isSaving.collectAsState()
+    val fieldErrors     by viewModel.fieldErrors.collectAsState()
+    val submissionError by viewModel.submissionError.collectAsState()
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -79,24 +83,31 @@ fun CreateGuestScreen(
 
                 Spacer(Modifier.height(4.dp))
 
+                val firstNameErr = draft.firstNameError ?: fieldErrors["first_name"]
                 OutlinedTextField(
                     value         = draft.firstName,
                     onValueChange = viewModel::setFirstName,
                     label         = { Text("Nombre") },
                     singleLine    = true,
+                    isError       = firstNameErr != null,
+                    supportingText = firstNameErr?.let { { Text(it) } },
                     modifier      = Modifier.fillMaxWidth()
                 )
+                val lastNameErr = draft.lastNameError ?: fieldErrors["last_name"]
                 OutlinedTextField(
                     value         = draft.lastName,
                     onValueChange = viewModel::setLastName,
                     label         = { Text("Apellido") },
                     singleLine    = true,
+                    isError       = lastNameErr != null,
+                    supportingText = lastNameErr?.let { { Text(it) } },
                     modifier      = Modifier.fillMaxWidth()
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    val bwErr = draft.bodyweightError ?: fieldErrors["bodyweight_kg"]
                     OutlinedTextField(
                         value         = draft.bodyweightKg,
                         onValueChange = viewModel::setBodyweight,
@@ -104,8 +115,11 @@ fun CreateGuestScreen(
                         suffix        = { Text("kg", style = MonoText.labelMedium) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine    = true,
+                        isError       = bwErr != null,
+                        supportingText = bwErr?.let { { Text(it) } },
                         modifier      = Modifier.weight(1f)
                     )
+                    val ageErr = draft.ageError ?: fieldErrors["age_years"]
                     OutlinedTextField(
                         value         = draft.ageYears,
                         onValueChange = viewModel::setAge,
@@ -113,6 +127,8 @@ fun CreateGuestScreen(
                         suffix        = { Text("años", style = MonoText.labelMedium) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine    = true,
+                        isError       = ageErr != null,
+                        supportingText = ageErr?.let { { Text(it) } },
                         modifier      = Modifier.weight(1f)
                     )
                 }
@@ -132,6 +148,21 @@ fun CreateGuestScreen(
                 }
 
                 Spacer(Modifier.height(8.dp))
+
+                submissionError?.let { msg ->
+                    Text(
+                        text  = msg,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.errorContainer,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(12.dp)
+                    )
+                }
 
                 Button(
                     onClick = { viewModel.createGuest(onCreated) },

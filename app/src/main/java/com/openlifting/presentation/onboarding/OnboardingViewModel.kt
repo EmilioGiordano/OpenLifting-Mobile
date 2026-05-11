@@ -12,6 +12,7 @@ import com.openlifting.domain.model.MvcCalibration
 import com.openlifting.domain.model.MvcCalibrationResult
 import com.openlifting.domain.model.Sex
 import com.openlifting.domain.repository.AthleteProfileRepository
+import com.openlifting.domain.repository.CoachRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,6 +92,7 @@ class OnboardingViewModel @Inject constructor(
     private val userDao: UserDao,
     private val athleteProfileDao: AthleteProfileDao,
     private val athleteProfileRepository: AthleteProfileRepository,
+    private val coachRepository: CoachRepository,
     private val simulator: Esp32Simulator
 ) : ViewModel() {
 
@@ -237,7 +239,16 @@ class OnboardingViewModel @Inject constructor(
                 return@launch
             }
 
-            when (val result = athleteProfileRepository.calibrate(captured)) {
+            // Route to the instructor-side endpoint when this profile is a guest. The plain
+            // /api/athlete/mvc would 403 because the caller's role is `instructor`.
+            val targetProfile = athleteProfileDao.getById(targetProfileId)
+            val result = if (targetProfile?.guestProfileServerId != null) {
+                coachRepository.calibrateGuest(targetProfileId, captured)
+            } else {
+                athleteProfileRepository.calibrate(captured)
+            }
+
+            when (result) {
                 is MvcCalibrationResult.Success -> {
                     _calibrationSubmission.value = SubmissionState.Idle
                     onDone()

@@ -2,6 +2,7 @@ package com.openlifting.domain.repository
 
 import com.openlifting.domain.model.AthleteProfile
 import com.openlifting.domain.model.AthleteProfileResult
+import com.openlifting.domain.model.ClaimRedeemResult
 import com.openlifting.domain.model.MvcCalibration
 import com.openlifting.domain.model.MvcCalibrationResult
 import com.openlifting.domain.model.Sex
@@ -31,4 +32,12 @@ interface AthleteProfileRepository {
     fun observeCachedProfile(userId: Long): Flow<AthleteProfile?>
 
     suspend fun getCachedProfile(userId: Long): AthleteProfile?
+
+    /**
+     * Redeems an instructor-issued claim code (`POST /api/claim`). Backend transfers the
+     * session referenced by the code to the athlete and copies the guest's profile +
+     * calibrations if the athlete didn't have one yet. The new local session id is included
+     * in [ClaimRedeemResult.Success].
+     */
+    suspend fun claimSession(code: String): ClaimRedeemResult
 }
