@@ -67,13 +67,14 @@ import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 
-// Colores V-D: sin rojo en las líneas de músculo
+// Paleta cualitativa: 5 hues separados ≥ 50° en la rueda de color para que sean
+// inconfundibles entre sí. Sin rojo (reservado a estados de riesgo).
 private val muscleColors = mapOf(
-    Muscle.VASTUS_LATERALIS to Color(0xFF0D9373),
-    Muscle.VASTUS_MEDIALIS  to Color(0xFF4A90C4),
-    Muscle.GLUTEUS_MAXIMUS  to Color(0xFFC8956C),
-    Muscle.ERECTOR_SPINAE   to Color(0xFF8B5CF6),
-    Muscle.BICEPS_FEMORIS   to Color(0xFF7B7585),
+    Muscle.VASTUS_LATERALIS to Color(0xFF0D9373), // emerald (verde-teal, hue ~165)
+    Muscle.VASTUS_MEDIALIS  to Color(0xFF2563EB), // royal blue (hue ~220)
+    Muscle.GLUTEUS_MAXIMUS  to Color(0xFFF59E0B), // amber saturado (hue ~38)
+    Muscle.ERECTOR_SPINAE   to Color(0xFF7C3AED), // violet (hue ~262)
+    Muscle.BICEPS_FEMORIS   to Color(0xFFDB2777), // pink (hue ~326, claramente distinto del risk red)
 )
 
 private val colorIzq = Color(0xFF0D9373)
