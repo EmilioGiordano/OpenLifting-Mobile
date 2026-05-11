@@ -20,6 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.openlifting.presentation.athlete.history.SessionDetailScreen
 import com.openlifting.presentation.athlete.session.SessionRouteArgs
 import com.openlifting.presentation.athlete.session.SessionScreen
 import com.openlifting.presentation.instructor.athlete.InstructorAthleteDetailScreen
@@ -53,6 +54,10 @@ private object InstructorRoute {
     const val ATHLETE_SESSION = "instructor/session/{athleteUserId}/{instructorUserId}"
     fun athleteSession(athleteUserId: Long, instructorUserId: Long) =
         "instructor/session/$athleteUserId/$instructorUserId"
+
+    /** sessionId param — read-only detail of a session belonging to a managed athlete. */
+    const val SESSION_DETAIL = "instructor/session-detail/{sessionId}"
+    fun sessionDetail(sessionId: Long) = "instructor/session-detail/$sessionId"
 }
 
 private val instructorTabs = listOf(InstructorTab.Athletes, InstructorTab.Profile)
@@ -169,9 +174,8 @@ private fun InstructorNavHost(
                 onRecalibrate  = { pid ->
                     navController.navigate(InstructorRoute.athleteRecalibrate(pid))
                 },
-                onSessionClick = { _ ->
-                    // TODO: navigate to a read-only Session Detail for instructors. For now
-                    // the row tap is a no-op so it doesn't dead-end.
+                onSessionClick = { sessionId ->
+                    navController.navigate(InstructorRoute.sessionDetail(sessionId))
                 }
             )
         }
@@ -199,6 +203,17 @@ private fun InstructorNavHost(
             // SavedStateHandle automatically — args populated by Compose Navigation.
             SessionScreen(
                 onFinish = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route     = InstructorRoute.SESSION_DETAIL,
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+        ) { backStack ->
+            val sessionId = backStack.arguments?.getLong("sessionId") ?: return@composable
+            SessionDetailScreen(
+                sessionId = sessionId,
+                onBack    = { navController.popBackStack() }
             )
         }
 

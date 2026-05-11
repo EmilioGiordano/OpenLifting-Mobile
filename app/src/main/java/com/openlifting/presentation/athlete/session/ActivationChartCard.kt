@@ -310,45 +310,55 @@ private fun BilateralNav(
     val derColor   = if (riskColor != null && weaker == "der") riskColor else colorDer
     val deltaColor = riskColor ?: MaterialTheme.olExtras.ink3
 
+    // Δ sits in the top-right corner so it doesn't fight the cluster horizontally.
+    // The cluster (IZQ | nav | DER) has intrinsic width and is centered: the muscle
+    // column is fixed-width so the cluster doesn't shift when navigating between muscles,
+    // and centering (not weighting) keeps IZQ/DER grouped on wide screens.
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        // IZQ + muscle nav + DER — truly centered cluster
         Row(
             modifier = Modifier.align(Alignment.Center),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             SideValue(label = "IZQ", value = avgLeft, color = izqColor)
 
-            IconButton(onClick = onPrev, enabled = muscleIdx > 0, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Anterior",
-                    modifier = Modifier.size(14.dp), tint = MaterialTheme.olExtras.ink3)
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text  = muscle.displayName,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text  = "${muscleIdx + 1} / ${muscleOrder.size}",
-                    style = MonoText.labelSmall,
-                    color = MaterialTheme.olExtras.ink3
-                )
-            }
-            IconButton(onClick = onNext, enabled = muscleIdx < muscleOrder.lastIndex, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Siguiente",
-                    modifier = Modifier.size(14.dp), tint = MaterialTheme.olExtras.ink3)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(onClick = onPrev, enabled = muscleIdx > 0, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Anterior",
+                        modifier = Modifier.size(14.dp), tint = MaterialTheme.olExtras.ink3)
+                }
+                Column(
+                    modifier = Modifier.width(110.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text  = muscle.displayName,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text  = "${muscleIdx + 1} / ${muscleOrder.size}",
+                        style = MonoText.labelSmall,
+                        color = MaterialTheme.olExtras.ink3
+                    )
+                }
+                IconButton(onClick = onNext, enabled = muscleIdx < muscleOrder.lastIndex, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Siguiente",
+                        modifier = Modifier.size(14.dp), tint = MaterialTheme.olExtras.ink3)
+                }
             }
 
             SideValue(label = "DER", value = avgRight, color = derColor)
         }
 
-        // Δ — pinned to right corner
         Text(
             text  = "Δ $delta%",
             style = MonoText.labelSmall.copy(fontWeight = FontWeight.Medium),
