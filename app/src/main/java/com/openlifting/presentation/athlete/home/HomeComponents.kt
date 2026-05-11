@@ -24,10 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.openlifting.domain.model.RiskLevel
 import com.openlifting.presentation.common.RiskBadge
 import com.openlifting.presentation.common.toColor
@@ -214,6 +219,8 @@ private fun BsaSparkline(values: List<Float>) {
     val warn    = MaterialTheme.olExtras.warn
     val risk    = MaterialTheme.olExtras.risk
     val rule    = MaterialTheme.colorScheme.outlineVariant
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MonoText.labelSmall.copy(fontSize = 10.sp)
 
     Canvas(
         modifier = Modifier
@@ -228,21 +235,35 @@ private fun BsaSparkline(values: List<Float>) {
 
         fun yFor(v: Float) = h - (v / maxY) * h
 
-        // Reference lines (dotted)
+        // Reference lines (dotted) — drawn before labels so the text sits on top.
         val dashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
         drawLine(
             color       = warn,
-            start       = androidx.compose.ui.geometry.Offset(0f, yFor(10f)),
-            end         = androidx.compose.ui.geometry.Offset(w, yFor(10f)),
+            start       = Offset(0f, yFor(10f)),
+            end         = Offset(w, yFor(10f)),
             strokeWidth = 1.5f,
             pathEffect  = dashEffect
         )
         drawLine(
             color       = risk,
-            start       = androidx.compose.ui.geometry.Offset(0f, yFor(15f)),
-            end         = androidx.compose.ui.geometry.Offset(w, yFor(15f)),
+            start       = Offset(0f, yFor(15f)),
+            end         = Offset(w, yFor(15f)),
             strokeWidth = 1.5f,
             pathEffect  = dashEffect
+        )
+
+        // Threshold labels: pinned to the left edge, sitting just above each line so they
+        // don't visually overlap the dashed line itself.
+        val warnLabel = textMeasurer.measure("Monitoreo 10%", labelStyle.copy(color = warn))
+        val riskLabel = textMeasurer.measure("Riesgo 15%",    labelStyle.copy(color = risk))
+        val labelGap = 3f
+        drawText(
+            textLayoutResult = warnLabel,
+            topLeft = Offset(2f, yFor(10f) - warnLabel.size.height - labelGap)
+        )
+        drawText(
+            textLayoutResult = riskLabel,
+            topLeft = Offset(2f, yFor(15f) - riskLabel.size.height - labelGap)
         )
 
         if (values.size < 2) {
