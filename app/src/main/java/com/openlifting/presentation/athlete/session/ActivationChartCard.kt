@@ -45,6 +45,7 @@ import com.openlifting.domain.model.MusclePair
 import com.openlifting.ui.theme.MonoText
 import com.openlifting.ui.theme.olExtras
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
@@ -164,6 +165,12 @@ fun ActivationChartCard(
             ModeToggle(mode = mode, onModeChange = { mode = it })
         }
 
+        if (mode == "bars") {
+            // ── Bars view: BSA-style IZQ/DER per muscle + asymmetry pill ─────
+            BarsView(repActivations = repActivations)
+            return@Column
+        }
+
         // ── Chart ────────────────────────────────────────────────────
         val lineColors = if (mode == "general") muscleOrder.map { muscleColors[it]!! }
                          else listOf(colorIzq, colorDer)
@@ -192,10 +199,16 @@ fun ActivationChartCard(
                 ),
                 startAxis = VerticalAxis.rememberStart(
                     label = rememberAxisLabelComponent(color = labelColor),
+                    guideline = rememberAxisGuidelineComponent(
+                        fill = fill(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    ),
                     itemPlacer = remember { VerticalAxis.ItemPlacer.step({ 20.0 }) }
                 ),
                 bottomAxis = HorizontalAxis.rememberBottom(
                     label = rememberAxisLabelComponent(color = labelColor),
+                    guideline = rememberAxisGuidelineComponent(
+                        fill = fill(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    ),
                     valueFormatter = repFormatter,
                 ),
                 layerPadding = { cartesianLayerPadding(scalableStart = 16.dp, scalableEnd = 16.dp) }
@@ -230,27 +243,27 @@ fun ActivationChartCard(
 
 @Composable
 private fun ModeToggle(mode: String, onModeChange: (String) -> Unit) {
+    val options = listOf("general" to "General", "bilateral" to "Bilateral", "bars" to "Barras")
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text     = "General",
-            style    = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color    = if (mode == "general") MaterialTheme.colorScheme.onSurface
-                       else MaterialTheme.olExtras.ink3,
-            modifier = Modifier.clickable { onModeChange("general") }.padding(horizontal = 4.dp, vertical = 2.dp)
-        )
-        Text(
-            text  = "|",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.outlineVariant,
-            modifier = Modifier.padding(horizontal = 2.dp)
-        )
-        Text(
-            text     = "Bilateral",
-            style    = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-            color    = if (mode == "bilateral") MaterialTheme.colorScheme.onSurface
-                       else MaterialTheme.olExtras.ink3,
-            modifier = Modifier.clickable { onModeChange("bilateral") }.padding(horizontal = 4.dp, vertical = 2.dp)
-        )
+        options.forEachIndexed { idx, (key, label) ->
+            if (idx > 0) {
+                Text(
+                    text  = "|",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.padding(horizontal = 2.dp)
+                )
+            }
+            Text(
+                text     = label,
+                style    = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color    = if (mode == key) MaterialTheme.colorScheme.onSurface
+                           else MaterialTheme.olExtras.ink3,
+                modifier = Modifier
+                    .clickable { onModeChange(key) }
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+        }
     }
 }
 
@@ -468,6 +481,152 @@ private fun AsymmetryRow(label: String, deltaPct: Int, barColor: Color) {
             style = MonoText.labelSmall.copy(fontWeight = FontWeight.Medium),
             color = barColor,
             modifier = Modifier.width(30.dp)
+        )
+    }
+}
+
+// ── Bars view (BSA-style progress bars per muscle, IZQ/DER + asym pill) ─────
+
+@Composable
+private fun BarsView(repActivations: List<Map<Muscle, MusclePair>>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+        muscleOrder.forEachIndexed { idx, muscle ->
+            val avgLeft  = repActivations.map { (it[muscle] ?: MusclePair(0f, 0f)).left  }.average().toFloat()
+            val avgRight = repActivations.map { (it[muscle] ?: MusclePair(0f, 0f)).right }.average().toFloat()
+            val delta = if (max(avgLeft, avgRight) > 0f)
+                (abs(avgLeft - avgRight) / max(avgLeft, avgRight) * 100).toInt() else 0
+
+            BarsMuscleRow(
+                shortName  = muscle.shortName,
+                leftPct    = avgLeft,
+                rightPct   = avgRight,
+                deltaPct   = delta,
+                drawDivider = idx > 0
+            )
+        }
+    }
+}
+
+@Composable
+private fun BarsMuscleRow(
+    shortName: String,
+    leftPct: Float,
+    rightPct: Float,
+    deltaPct: Int,
+    drawDivider: Boolean
+) {
+    val barColor = when {
+        deltaPct >= 15 -> MaterialTheme.olExtras.risk
+        deltaPct >= 10 -> MaterialTheme.olExtras.warn
+        else           -> MaterialTheme.olExtras.emerald
+    }
+    val pillBg = when {
+        deltaPct >= 15 -> MaterialTheme.olExtras.riskSoft
+        deltaPct >= 10 -> MaterialTheme.olExtras.warnSoft
+        else           -> MaterialTheme.olExtras.emeraldSoft
+    }
+    val pillInk = when {
+        deltaPct >= 15 -> MaterialTheme.olExtras.riskInk
+        deltaPct >= 10 -> MaterialTheme.olExtras.warnInk
+        else           -> MaterialTheme.olExtras.emeraldInk
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (drawDivider) {
+            androidx.compose.material3.HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Muscle code, mono small
+            Text(
+                text  = shortName,
+                style = MonoText.labelSmall.copy(fontWeight = FontWeight.Medium, letterSpacing = 0.4.sp),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.width(28.dp)
+            )
+
+            // IZQ / DER stacked bars
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                BarsSideLine(label = "IZQ", value = leftPct,  barColor = barColor)
+                BarsSideLine(label = "DER", value = rightPct, barColor = barColor)
+            }
+
+            // Asymmetry pill (right edge)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(pillBg)
+                    .border(
+                        width = 1.dp,
+                        color = barColor.copy(alpha = 0.28f),
+                        shape = RoundedCornerShape(999.dp)
+                    )
+                    .padding(horizontal = 7.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text  = "$deltaPct%",
+                    style = MonoText.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.4.sp
+                    ),
+                    color = pillInk
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BarsSideLine(label: String, value: Float, barColor: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text     = label,
+            style    = MonoText.labelSmall.copy(letterSpacing = 0.8.sp),
+            color    = MaterialTheme.olExtras.ink3,
+            modifier = Modifier.width(24.dp)
+        )
+        // Track + fill
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(6.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            val fraction = (value / 100f).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(barColor)
+            )
+        }
+        Text(
+            text     = "${value.toInt()}%",
+            style    = MonoText.labelSmall.copy(fontWeight = FontWeight.Medium),
+            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            modifier = Modifier.width(32.dp)
         )
     }
 }
