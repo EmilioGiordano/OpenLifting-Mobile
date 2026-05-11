@@ -46,6 +46,7 @@ fun AthleteProfileScreen(
     onRecalibrate: () -> Unit = {},
     onEditProfile: () -> Unit = {},
     onSetupProfile: () -> Unit = {},
+    onClaimSession: () -> Unit = {},
     profileViewModel: ProfileViewModel = hiltViewModel(),
     athleteViewModel: AthleteProfileViewModel = hiltViewModel()
 ) {
@@ -105,6 +106,20 @@ fun AthleteProfileScreen(
                     modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
                     Text("Recalibrar MVC")
+                }
+            }
+
+            ProfileSection(label = "RECLAMAR SESIÓN") {
+                Text(
+                    text  = "Si tu entrenador te midió con su cuenta, ingresá el código que te dio para vincular esa sesión a tu perfil.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedButton(
+                    onClick  = onClaimSession,
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                ) {
+                    Text("Reclamar sesión con código")
                 }
             }
 

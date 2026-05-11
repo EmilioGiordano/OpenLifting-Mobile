@@ -29,12 +29,13 @@ import java.io.IOException
 
 class AthleteProfileRepositoryImplTest {
 
-    private val api      = mockk<VortexAthleteApi>()
-    private val dao      = mockk<AthleteProfileDao>(relaxed = true)
-    private val userDao  = mockk<UserDao>()
-    private val json     = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val api        = mockk<VortexAthleteApi>()
+    private val dao        = mockk<AthleteProfileDao>(relaxed = true)
+    private val userDao    = mockk<UserDao>()
+    private val sessionDao = mockk<com.openlifting.data.local.dao.SessionDao>(relaxed = true)
+    private val json       = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    private fun build() = AthleteProfileRepositoryImpl(api, dao, userDao, json)
+    private fun build() = AthleteProfileRepositoryImpl(api, dao, userDao, sessionDao, json)
 
     private fun userEntity(id: Long = 7L) = UserEntity(
         id = id, email = "a@b.com", name = "A", role = "ATHLETE", authToken = "tok"

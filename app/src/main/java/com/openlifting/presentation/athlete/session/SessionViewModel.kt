@@ -3,6 +3,7 @@ package com.openlifting.presentation.athlete.session
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.openlifting.data.local.dao.AthleteProfileDao
 import com.openlifting.data.local.dao.SessionDao
 import com.openlifting.data.local.dao.SetDao
 import com.openlifting.data.local.dao.UserDao
@@ -20,7 +21,9 @@ import com.openlifting.domain.model.RepPhase
 import com.openlifting.domain.model.RiskLevel
 import com.openlifting.domain.model.SetMetrics
 import com.openlifting.domain.model.SquatDepth
+import com.openlifting.domain.model.ClaimCodeResult
 import com.openlifting.domain.model.SquatVariant
+import com.openlifting.domain.repository.CoachRepository
 import com.openlifting.domain.repository.SessionRepository
 import com.openlifting.domain.usecase.metrics.ComputeSetMetrics
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -104,20 +107,38 @@ sealed interface SessionUiState {
         val durationMinutes: Int?,
         val overallRisk: RiskLevel,
         val sets: List<SetRecapItem>,
-        val topRecommendations: List<Recommendation>
+        val topRecommendations: List<Recommendation>,
+        /**
+         * True when this session was measured by an instructor for a guest profile. The
+         * summary screen exposes a "Generar código de reclamo" CTA in that case so the
+         * coach can hand the code to the athlete.
+         */
+        val isGuestSession: Boolean = false,
+        /** Issued claim code, if the coach already generated one for this summary. */
+        val claimCode: ClaimCodeBanner? = null
     ) : SessionUiState
     data class Error(val message: String) : SessionUiState
 }
+
+/** A claim code shown on the coach's session-summary screen. */
+data class ClaimCodeBanner(
+    val code: String,
+    val expiresAtEpochMs: Long,
+    val isGenerating: Boolean = false,
+    val errorMessage: String? = null
+)
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
+    private val coachRepository: CoachRepository,
     private val emgDataSource: EmgDataSource,
     private val computeMetrics: ComputeSetMetrics,
     private val userDao: UserDao,
     private val setDao: SetDao,
-    private val sessionDao: SessionDao
+    private val sessionDao: SessionDao,
+    private val athleteProfileDao: AthleteProfileDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SessionUiState>(SessionUiState.MetadataEntry)
@@ -410,6 +431,12 @@ class SessionViewModel @Inject constructor(
                 .distinctBy { it.text }
                 .take(3)
 
+            // If the session belongs to a guest profile, the coach should be able to issue a
+            // claim code for the athlete to redeem.
+            val session = sessionDao.getById(sessionLocalId)
+            val athleteProfile = session?.let { athleteProfileDao.getByUserId(it.athleteUserId) }
+            val isGuest = athleteProfile?.guestProfileServerId != null
+
             _uiState.value = SessionUiState.SessionSummary(
                 sessionId       = sessionLocalId,
                 totalSets       = sets.size,
@@ -418,7 +445,56 @@ class SessionViewModel @Inject constructor(
                 durationMinutes = duration,
                 overallRisk     = recap.maxByOrNull { it.overallRisk.ordinal }?.overallRisk ?: RiskLevel.NORMAL,
                 sets            = recap,
-                topRecommendations = topRecs
+                topRecommendations = topRecs,
+                isGuestSession  = isGuest
+            )
+        }
+    }
+
+    /**
+     * Triggered from the session summary when a coach wants to hand a redeem code to a guest
+     * athlete. Wraps the backend response in a [ClaimCodeBanner] that lives inside the current
+     * [SessionUiState.SessionSummary] so the UI can show the code + a 5-minute countdown.
+     */
+    fun generateClaimCode() {
+        val summary = _uiState.value as? SessionUiState.SessionSummary ?: return
+        val banner = summary.claimCode
+        if (banner?.isGenerating == true) return
+
+        _uiState.value = summary.copy(
+            claimCode = (banner ?: ClaimCodeBanner(code = "", expiresAtEpochMs = 0L))
+                .copy(isGenerating = true, errorMessage = null)
+        )
+
+        viewModelScope.launch {
+            val result = coachRepository.generateClaimCode(summary.sessionId)
+            val current = _uiState.value as? SessionUiState.SessionSummary ?: return@launch
+            _uiState.value = current.copy(
+                claimCode = when (result) {
+                    is ClaimCodeResult.Success -> ClaimCodeBanner(
+                        code = result.code,
+                        expiresAtEpochMs = result.expiresAtEpochMs,
+                        isGenerating = false,
+                        errorMessage = null
+                    )
+                    is ClaimCodeResult.NotFound -> banner?.copy(isGenerating = false,
+                        errorMessage = "La sesión todavía no se sincronizó con el servidor.") ?:
+                        ClaimCodeBanner(code = "", expiresAtEpochMs = 0L, isGenerating = false,
+                            errorMessage = "La sesión todavía no se sincronizó con el servidor.")
+                    is ClaimCodeResult.Unauthorized,
+                    is ClaimCodeResult.Forbidden -> banner?.copy(isGenerating = false,
+                        errorMessage = "No tenés permisos para generar este código.") ?:
+                        ClaimCodeBanner(code = "", expiresAtEpochMs = 0L, isGenerating = false,
+                            errorMessage = "No tenés permisos para generar este código.")
+                    is ClaimCodeResult.NetworkError -> banner?.copy(isGenerating = false,
+                        errorMessage = "Sin conexión. Revisá la red.") ?:
+                        ClaimCodeBanner(code = "", expiresAtEpochMs = 0L, isGenerating = false,
+                            errorMessage = "Sin conexión. Revisá la red.")
+                    is ClaimCodeResult.ServerError -> banner?.copy(isGenerating = false,
+                        errorMessage = "Error del servidor (${result.code}).") ?:
+                        ClaimCodeBanner(code = "", expiresAtEpochMs = 0L, isGenerating = false,
+                            errorMessage = "Error del servidor (${result.code}).")
+                }
             )
         }
     }

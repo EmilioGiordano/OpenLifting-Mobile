@@ -40,7 +40,9 @@ class SessionViewModelTest {
     private val computeMetrics    = mockk<ComputeSetMetrics>()
     private val userDao           = mockk<UserDao>()
     private val setDao            = mockk<SetDao>()
-    private val sessionDao        = mockk<SessionDao>()
+    private val sessionDao        = mockk<SessionDao>(relaxed = true)
+    private val coachRepository   = mockk<com.openlifting.domain.repository.CoachRepository>(relaxed = true)
+    private val athleteProfileDao = mockk<com.openlifting.data.local.dao.AthleteProfileDao>(relaxed = true)
 
     @Before
     fun setUp() {
@@ -55,7 +57,8 @@ class SessionViewModelTest {
     private fun build(
         savedStateHandle: androidx.lifecycle.SavedStateHandle = androidx.lifecycle.SavedStateHandle()
     ) = SessionViewModel(
-        savedStateHandle, sessionRepository, emgDataSource, computeMetrics, userDao, setDao, sessionDao
+        savedStateHandle, sessionRepository, coachRepository, emgDataSource, computeMetrics,
+        userDao, setDao, sessionDao, athleteProfileDao
     )
 
     private fun set(localId: Long, setNumber: Int, loadKg: Float, targetReps: Int = 5) =

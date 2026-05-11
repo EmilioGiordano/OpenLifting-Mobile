@@ -20,6 +20,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.openlifting.presentation.athlete.claim.ClaimSessionScreen
 import com.openlifting.presentation.athlete.history.HistoryScreen
 import com.openlifting.presentation.athlete.history.SessionDetailScreen
 import com.openlifting.presentation.athlete.home.AthleteHomeScreen
@@ -157,7 +158,8 @@ private fun AthleteNavHost(
                 onSwitchToInstructor = onSwitchToInstructor,
                 onRecalibrate        = onStartRecalibration,
                 onEditProfile        = { navController.navigate("athlete/profile/edit") },
-                onSetupProfile       = onStartProfileSetup
+                onSetupProfile       = onStartProfileSetup,
+                onClaimSession       = { navController.navigate("athlete/claim") }
             )
         }
 
@@ -165,6 +167,18 @@ private fun AthleteNavHost(
             EditAthleteProfileScreen(
                 onSaved = { navController.popBackStack() },
                 onBack  = { navController.popBackStack() }
+            )
+        }
+
+        composable("athlete/claim") {
+            ClaimSessionScreen(
+                onBack    = { navController.popBackStack() },
+                onSuccess = {
+                    navController.navigate(AthleteTab.History.route) {
+                        popUpTo(AthleteTab.Profile.route)
+                        launchSingleTop = true
+                    }
+                }
             )
         }
     }
