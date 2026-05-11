@@ -121,6 +121,12 @@ class SessionRepositoryImpl @Inject constructor(
                 existingLocalId  = existing?.localId ?: 0
             )
             if (existing == null) sessionDao.insert(entity) else sessionDao.update(entity)
+
+            // GET /api/sessions (list) omits the `sets` key. Without this second call the local
+            // session row would stay with zero children, which is what the user sees as
+            // "0 series · 0 kg · 9 kg MAX" in history after a fresh login against a seeded DB.
+            // The N+1 is acceptable here — a typical athlete has < 30 sessions.
+            hydrateSessionFromBackend(dto.id)
         }
         return dtos.size
     }
