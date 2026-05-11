@@ -2,6 +2,7 @@ package com.openlifting.data.repository
 
 import androidx.room.withTransaction
 import com.openlifting.data.local.OpenLiftingDatabase
+import com.openlifting.data.local.dao.AthleteProfileDao
 import com.openlifting.data.local.dao.SessionDao
 import com.openlifting.data.local.dao.SetDao
 import com.openlifting.data.local.entity.MuscleActivationEntity
@@ -14,6 +15,8 @@ import com.openlifting.data.mapper.buildPostSetRequest
 import com.openlifting.data.mapper.toEntity
 import com.openlifting.data.mapper.toIsoInstant
 import com.openlifting.data.remote.api.VortexSessionApi
+import com.openlifting.data.remote.api.VortexInstructorApi
+import com.openlifting.data.remote.dto.CreateGuestSessionRequest
 import com.openlifting.data.remote.dto.CreateSessionRequest
 import com.openlifting.data.remote.dto.EndSessionRequest
 import com.openlifting.data.remote.dto.PatchSessionRequest
@@ -36,12 +39,22 @@ class SessionRepositoryImpl @Inject constructor(
     private val db: OpenLiftingDatabase,
     private val sessionDao: SessionDao,
     private val setDao: SetDao,
-    private val sessionApi: VortexSessionApi
+    private val athleteProfileDao: AthleteProfileDao,
+    private val sessionApi: VortexSessionApi,
+    private val instructorApi: VortexInstructorApi
 ) : SessionRepository {
 
     override suspend fun createSession(athleteUserId: Long, instructorUserId: Long?): Long {
         val now = System.currentTimeMillis()
-        val remote = tryRemoteCreate(now)
+        // Detect guest-mode session: the local athlete_profile attached to athleteUserId is
+        // a guest backed by `guest_profiles` on Vortex. Route to /api/instructor/sessions in
+        // that case; otherwise hit /api/sessions as the logged-in athlete.
+        val guestProfileServerId = athleteProfileDao.getByUserId(athleteUserId)?.guestProfileServerId
+        val remote = if (guestProfileServerId != null) {
+            tryRemoteCreateGuest(guestProfileServerId, now)
+        } else {
+            tryRemoteCreate(now)
+        }
         val entity = if (remote != null) {
             TrainingSessionEntity(
                 serverId         = remote.id,
@@ -93,6 +106,21 @@ class SessionRepositoryImpl @Inject constructor(
             if (existing == null) sessionDao.insert(entity) else sessionDao.update(entity)
         }
         return dtos.size
+    }
+
+    private suspend fun tryRemoteCreateGuest(
+        guestProfileServerId: Long,
+        startedAtMs: Long
+    ): TrainingSessionDto? = try {
+        val res = instructorApi.createGuestSession(
+            CreateGuestSessionRequest(
+                guestProfileId = guestProfileServerId,
+                startedAt      = startedAtMs.toIsoInstant()
+            )
+        )
+        if (res.isSuccessful) res.body() else null
+    } catch (_: Exception) {
+        null
     }
 
     private suspend fun tryRemoteCreate(startedAtMs: Long): TrainingSessionDto? = try {

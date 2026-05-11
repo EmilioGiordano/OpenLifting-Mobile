@@ -1,9 +1,11 @@
 package com.openlifting.data.remote.api
 
 import com.openlifting.data.remote.dto.AthleteProfileDto
+import com.openlifting.data.remote.dto.ClaimRequest
 import com.openlifting.data.remote.dto.CreateAthleteProfileRequest
 import com.openlifting.data.remote.dto.MvcCalibrationDto
 import com.openlifting.data.remote.dto.StoreMvcCalibrationsRequest
+import com.openlifting.data.remote.dto.TrainingSessionDto
 import com.openlifting.data.remote.dto.UpdateAthleteProfileRequest
 import retrofit2.Response
 import retrofit2.http.Body
@@ -23,4 +25,7 @@ interface VortexAthleteApi {
 
     @POST("api/athlete/mvc")
     suspend fun calibrate(@Body body: StoreMvcCalibrationsRequest): Response<List<MvcCalibrationDto>>
+
+    @POST("api/claim")
+    suspend fun claim(@Body body: ClaimRequest): Response<TrainingSessionDto>
 }

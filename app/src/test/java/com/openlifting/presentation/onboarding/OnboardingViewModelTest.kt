@@ -9,6 +9,7 @@ import com.openlifting.domain.model.AthleteProfileResult
 import com.openlifting.domain.model.MvcCalibrationResult
 import com.openlifting.domain.model.Sex
 import com.openlifting.domain.repository.AthleteProfileRepository
+import com.openlifting.domain.repository.CoachRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -33,6 +34,7 @@ class OnboardingViewModelTest {
     private val userDao            = mockk<UserDao>()
     private val athleteProfileDao  = mockk<AthleteProfileDao>(relaxed = true)
     private val repo               = mockk<AthleteProfileRepository>(relaxed = true)
+    private val coachRepository    = mockk<CoachRepository>(relaxed = true)
     private val simulator          = mockk<Esp32Simulator>()
 
     @Before
@@ -50,7 +52,7 @@ class OnboardingViewModelTest {
     }
 
     private fun build(): OnboardingViewModel =
-        OnboardingViewModel(userDao, athleteProfileDao, repo, simulator)
+        OnboardingViewModel(userDao, athleteProfileDao, repo, coachRepository, simulator)
 
     private fun profile(id: Long = 9L, calibratedAt: Long? = null) = AthleteProfile(
         id = id, userId = 1L, firstName = "Emilio", lastName = "Giordano",
