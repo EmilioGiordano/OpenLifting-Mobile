@@ -10,6 +10,7 @@ import com.openlifting.data.local.dao.SessionDao
 import com.openlifting.data.local.entity.TrainingSessionEntity
 import com.openlifting.data.mapper.toEntity
 import com.openlifting.data.remote.api.VortexAthleteApi
+import com.openlifting.domain.repository.SessionRepository
 import com.openlifting.data.remote.dto.AthleteProfileDto
 import com.openlifting.data.remote.dto.ClaimRequest
 import com.openlifting.data.remote.dto.CreateAthleteProfileRequest
@@ -37,6 +38,7 @@ class AthleteProfileRepositoryImpl @Inject constructor(
     private val athleteProfileDao: AthleteProfileDao,
     private val userDao: UserDao,
     private val sessionDao: SessionDao,
+    private val sessionRepository: SessionRepository,
     private val json: Json
 ) : AthleteProfileRepository {
 
@@ -111,8 +113,9 @@ class AthleteProfileRepositoryImpl @Inject constructor(
         }
         val sessionDto = response.body() ?: return ClaimRedeemResult.ServerError(response.code())
 
-        // Mirror the transferred session into Room. Profile + calibrations are not pulled
-        // here — the caller (ViewModel) re-fetches them via the existing flows after claim.
+        // Mirror the transferred session into Room. POST /api/claim returns the flat session
+        // (no nested sets), so we first persist the session shell and then chain a GET to
+        // /api/sessions/{id} to hydrate sets + reps + activations + metrics + recommendations.
         val user = userDao.getLoggedInUser() ?: return ClaimRedeemResult.ServerError(0)
         val existingLocal = sessionDao.getByServerId(sessionDto.id)
         val entity = sessionDto.toEntity(
@@ -125,6 +128,11 @@ class AthleteProfileRepositoryImpl @Inject constructor(
         } else {
             sessionDao.update(entity); existingLocal.localId
         }
+
+        // Pull the full session tree so the athlete sees their sets / metrics in History.
+        // Failure here is non-fatal — the claim already succeeded; we surface the empty
+        // session and let the user retry later (e.g. via "Reclamar" or a future sync action).
+        runCatching { sessionRepository.hydrateSessionFromBackend(sessionDto.id) }
 
         // Refresh the athlete profile from backend so any newly copied first_name / bodyweight
         // shows up in the UI. Failure is non-fatal — the claim itself succeeded.

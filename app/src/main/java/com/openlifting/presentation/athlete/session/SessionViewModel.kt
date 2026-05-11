@@ -218,10 +218,21 @@ class SessionViewModel @Inject constructor(
                         _uiState.value = SessionUiState.Error("Usuario no encontrado")
                         return@launch
                     }
-                sessionLocalId = sessionRepository.createSession(
+                val createdId = sessionRepository.createSession(
                     athleteUserId    = athleteUserId,
                     instructorUserId = explicitInstructorUserId
                 )
+                if (createdId == -1L) {
+                    // Guest-mode online-first failure: backend rejected the session (no network,
+                    // guest already claimed, instructor not authorised). The user cannot proceed
+                    // because there is no backend id to anchor sets / claim codes on.
+                    _uiState.value = SessionUiState.Error(
+                        "No se pudo crear la sesión. Si tu invitado ya reclamó sus datos, " +
+                        "creá un invitado nuevo para empezar otra sesión."
+                    )
+                    return@launch
+                }
+                sessionLocalId = createdId
             }
 
             // Stream events and update state per event. SetComplete carries the final

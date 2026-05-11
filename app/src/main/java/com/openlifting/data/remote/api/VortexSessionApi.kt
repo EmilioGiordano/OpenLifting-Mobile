@@ -6,6 +6,7 @@ import com.openlifting.data.remote.dto.PaginatedSessions
 import com.openlifting.data.remote.dto.PatchSessionRequest
 import com.openlifting.data.remote.dto.PostSetRequest
 import com.openlifting.data.remote.dto.PostSetResponse
+import com.openlifting.data.remote.dto.SessionWithSetsDto
 import com.openlifting.data.remote.dto.TrainingSessionDto
 import retrofit2.Response
 import retrofit2.http.Body
@@ -19,6 +20,9 @@ import retrofit2.http.Query
 interface VortexSessionApi {
     @GET("api/sessions")
     suspend fun listSessions(@Query("page") page: Int = 1): Response<PaginatedSessions>
+
+    @GET("api/sessions/{id}")
+    suspend fun getSessionWithSets(@Path("id") id: Long): Response<SessionWithSetsDto>
 
     @POST("api/sessions")
     suspend fun createSession(@Body body: CreateSessionRequest): Response<TrainingSessionDto>

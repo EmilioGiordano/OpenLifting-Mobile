@@ -52,4 +52,12 @@ interface SetDao {
 
     @Query("UPDATE training_sets SET serverId = :serverId, synced = 1 WHERE localId = :localId")
     suspend fun markSynced(localId: Long, serverId: Long)
+
+    /**
+     * Removes every set (and via FK CASCADE every rep, activation, metrics row and
+     * recommendation) attached to a session. Used before re-hydrating a session from the
+     * backend so we don't end up with stale or duplicated rows.
+     */
+    @Query("DELETE FROM training_sets WHERE sessionLocalId = :sessionLocalId")
+    suspend fun deleteSetsForSession(sessionLocalId: Long)
 }

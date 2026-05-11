@@ -48,4 +48,12 @@ interface SessionRepository {
      * row is updated regardless so the UI stays consistent.
      */
     suspend fun updateSessionDeviceSource(sessionLocalId: Long, source: DeviceSource)
+
+    /**
+     * Pulls the full session tree (sets + reps + activations + metrics + recommendations) from
+     * Vortex's `GET /api/sessions/{id}` and rewrites the local rows for [sessionServerId].
+     * Used after a claim to materialise the data on the athlete's device. Returns the local
+     * session id (creating one if it didn't exist), or null if the fetch failed.
+     */
+    suspend fun hydrateSessionFromBackend(sessionServerId: Long): Long?
 }
