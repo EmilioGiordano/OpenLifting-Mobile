@@ -2,7 +2,7 @@
 
 App Android nativa para análisis de activación muscular (sEMG) durante sentadillas de powerlifting. Componente móvil de un proyecto de tesis (Licenciatura en Informática) que se conecta a sensores ESP32 + MyoWare 2.0 y entrega análisis bilateral en %MVC.
 
-> **Esta entrega es la cursada de Computación Móvil.** El ESP32 está **simulado dentro de la app** (`data/simulator/Esp32Simulator.kt`) usando distribuciones normales con parámetros tomados de literatura sEMG (Bogdanis 2019, Caterisano 2002, Yavuz 2017). La app es idéntica con sensor real o simulado.
+> **Esta entrega es la cursada de Computación Móvil.** El ESP32 está **simulado dentro de la app** (`data/simulator/Esp32Simulator.kt`) usando distribuciones normales con parámetros tomados de literatura sEMG (Bogdanis 2019, Caterisano 2002, Yavuz 2017). La app es idéntica con sensor real o simulado, pero requiere programar la configuración mediante Bluetooth.
 
 ## Stack
 
@@ -77,6 +77,24 @@ Dos temas (claro y oscuro warm), misma estructura semántica:
 - **Risk** → rojo, riesgo
 
 Tipografías: **Space Grotesk** (display), **Inter** (UI), **IBM Plex Mono** (números). Maquetas de referencia en `UI-inspiration/`.
+
+### Light mode
+<img width="2400" height="2100" alt="athlete-screens-light-overview" src="https://github.com/user-attachments/assets/13c46c1e-b70d-4f15-916d-42446e8e2fd8" />
+
+#### Charts: Diseños preliminares
+<img width="1573" height="1205" alt="image" src="https://github.com/user-attachments/assets/1031ee78-b1f8-4f8f-81a9-f5786280e946" />
+
+>! Las opciones 'V-D · Focus' son los diseños más cercanos al diseño real implementado
+
+### Dark mode
+<img width="2400" height="2100" alt="athlete-screens-dark-overview" src="https://github.com/user-attachments/assets/82fa91a5-97d6-4a2c-b0eb-90f6ce0410c6" />
+
+#### Charts: Diseños preliminares
+<img width="1588" height="1225" alt="image" src="https://github.com/user-attachments/assets/7d83a43f-2fdf-4ca1-94a9-d72ec4295f32" />
+
+>! Las opciones 'V-D · Focus' son los diseños más cercanos al diseño real implementado
+
+
 
 ## Convenciones
 
