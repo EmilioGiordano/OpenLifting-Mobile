@@ -198,7 +198,7 @@ class VortexCoachRepository @Inject constructor(
             lastName     = lastName,
             bodyweightKg = bodyweightKg,
             ageYears     = ageYears,
-            sex          = runCatching { Sex.valueOf(sex) }.getOrDefault(Sex.OTHER),
+            sex          = runCatching { Sex.valueOf(sex) }.getOrDefault(Sex.MALE),
             calibratedAt = calibratedAt
         ),
         isGuest = guestOfInstructorId != null
