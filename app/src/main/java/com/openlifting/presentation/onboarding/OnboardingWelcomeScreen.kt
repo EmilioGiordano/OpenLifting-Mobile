@@ -1,8 +1,6 @@
 package com.openlifting.presentation.onboarding
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Balance
 import androidx.compose.material.icons.filled.Shield
@@ -26,11 +23,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.openlifting.ui.theme.MonoText
+import com.openlifting.presentation.common.BrandMark
 import com.openlifting.ui.theme.olExtras
 
 @Composable
@@ -40,8 +36,16 @@ fun OnboardingWelcomeScreen(
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-            // Skip top-right
-            Box(modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp), contentAlignment = Alignment.TopEnd) {
+            // Top bar: logo + brand on the left, Skip on the right
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BrandMark()
+                Spacer(Modifier.weight(1f))
                 TextButton(onClick = onSkip) {
                     Text("Saltar", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.olExtras.ink3)
                 }
@@ -49,26 +53,8 @@ fun OnboardingWelcomeScreen(
 
             Spacer(Modifier.weight(1f))
 
-            // Hero block
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(MaterialTheme.olExtras.emeraldSoft),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text  = "OL",
-                    style = MonoText.displayLarge,
-                    color = MaterialTheme.olExtras.emerald
-                )
-            }
-
-            Spacer(Modifier.height(28.dp))
-
             Text(
-                text  = "Medí lo que entrenás",
+                text  = "Mida lo que entrena",
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center,
@@ -76,7 +62,7 @@ fun OnboardingWelcomeScreen(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text  = "OpenLifting analiza la activación muscular durante tus sentadillas y detecta asimetrías y compensaciones que el ojo no ve.",
+                text  = "OpenLifting analiza la activación muscular durante sus sentadillas y detecta asimetrías y compensaciones que el ojo no ve.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

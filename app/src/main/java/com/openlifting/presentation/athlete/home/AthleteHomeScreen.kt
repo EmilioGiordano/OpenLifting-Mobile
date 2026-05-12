@@ -24,8 +24,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.openlifting.presentation.common.BrandMark
 import com.openlifting.ui.theme.MonoText
 import com.openlifting.ui.theme.olExtras
 
@@ -65,7 +67,7 @@ private fun EmptyView(state: AthleteHomeUiState.Empty, onNewSession: () -> Unit,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item { Spacer(Modifier.height(8.dp)) }
-        item { GreetingHeader(state.athleteFirstName, lastSessionLine = "Sin sesiones aún") }
+        item { HomeTopBar(firstName = state.athleteFirstName, lastSessionLine = "Sin sesiones aún") }
         if (!state.mvcCalibrated) {
             item { PendingCalibrationBanner(onCalibrate = onCalibrate) }
         }
@@ -106,7 +108,7 @@ private fun LoadedView(state: AthleteHomeUiState.Loaded, onNewSession: () -> Uni
         item { Spacer(Modifier.height(8.dp)) }
 
         item {
-            GreetingHeader(
+            HomeTopBar(
                 firstName       = state.athleteFirstName,
                 lastSessionLine = relativeDate(state.lastSession.startedAt)
             )
@@ -175,18 +177,27 @@ private fun LoadedView(state: AthleteHomeUiState.Loaded, onNewSession: () -> Uni
 }
 
 @Composable
-private fun GreetingHeader(firstName: String, lastSessionLine: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text  = "Hola, $firstName",
-            style = MaterialTheme.typography.displaySmall,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            text  = lastSessionLine,
-            style = MonoText.labelSmall,
-            color = MaterialTheme.olExtras.ink3
-        )
+private fun HomeTopBar(firstName: String, lastSessionLine: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BrandMark()
+        Spacer(Modifier.weight(1f))
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text  = "Hola, $firstName",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.End
+            )
+            Text(
+                text  = lastSessionLine,
+                style = MonoText.labelSmall,
+                color = MaterialTheme.olExtras.ink3,
+                textAlign = TextAlign.End
+            )
+        }
     }
 }
 
