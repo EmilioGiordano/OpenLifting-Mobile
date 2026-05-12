@@ -84,7 +84,7 @@ Tipografías: **Space Grotesk** (display), **Inter** (UI), **IBM Plex Mono** (n�
 - Sin gamificación (streaks, badges, puntos). Es herramienta clínica.
 - Sin AI/LLM en la primer fase del proyecto (dominio de salud, riesgo de alucinación).
 - Tests antes del commit en lógica de dominio / use cases.
-- Mensajes de commit: imperativos, sin co-author tag, sin emojis.
+- Mensajes de commit: imperativos, descriptivos, en inglés y sin emojis.
 
 ## Documentación adicional
 
