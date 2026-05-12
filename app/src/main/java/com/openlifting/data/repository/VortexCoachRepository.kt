@@ -113,7 +113,7 @@ class VortexCoachRepository @Inject constructor(
                 lastName      = dto.lastName,
                 bodyweightKg  = dto.bodyweightKg.toFloat(),
                 ageYears      = dto.ageYears,
-                sex           = runCatching { Sex.valueOf(dto.sex) }.getOrDefault(Sex.OTHER),
+                sex           = runCatching { Sex.valueOf(dto.sex) }.getOrDefault(Sex.MALE),
                 calibratedAt  = dto.calibratedAt?.toEpochMillisOrNull(),
                 claimed       = dto.claimed,
                 claimedAt     = dto.claimedAt?.toEpochMillisOrNull(),
