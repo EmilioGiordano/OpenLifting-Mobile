@@ -54,7 +54,7 @@ fun OnboardingWelcomeScreen(
             Spacer(Modifier.weight(1f))
 
             Text(
-                text  = "Mida lo que entrena",
+                text  = "Mida su entrenamiento",
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center,
