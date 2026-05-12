@@ -93,7 +93,7 @@ private fun InputContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text  = "Ingresá el código de 8 caracteres que te dio tu entrenador. La sesión y la calibración asociada quedarán en tu cuenta.",
+            text  = "Ingrese el código de 8 caracteres que le dio su entrenador. La sesión y la calibración asociada quedarán en su cuenta.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -179,7 +179,7 @@ private fun SuccessContent(onContinue: () -> Unit) {
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            text  = "La sesión que tu entrenador midió ya aparece en tu historial. Si no tenías perfil, también copiamos tus datos físicos y tu calibración.",
+            text  = "La sesión que su entrenador midió ya aparece en su historial. Si no tenía perfil, también copiamos sus datos físicos y su calibración.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

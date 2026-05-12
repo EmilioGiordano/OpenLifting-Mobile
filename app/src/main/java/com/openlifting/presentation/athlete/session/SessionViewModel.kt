@@ -494,13 +494,13 @@ class SessionViewModel @Inject constructor(
                             errorMessage = "La sesión todavía no se sincronizó con el servidor.")
                     is ClaimCodeResult.Unauthorized,
                     is ClaimCodeResult.Forbidden -> banner?.copy(isGenerating = false,
-                        errorMessage = "No tenés permisos para generar este código.") ?:
+                        errorMessage = "No tiene permisos para generar este código.") ?:
                         ClaimCodeBanner(code = "", expiresAtEpochMs = 0L, isGenerating = false,
-                            errorMessage = "No tenés permisos para generar este código.")
+                            errorMessage = "No tiene permisos para generar este código.")
                     is ClaimCodeResult.NetworkError -> banner?.copy(isGenerating = false,
-                        errorMessage = "Sin conexión. Revisá la red.") ?:
+                        errorMessage = "Sin conexión. Revise la red.") ?:
                         ClaimCodeBanner(code = "", expiresAtEpochMs = 0L, isGenerating = false,
-                            errorMessage = "Sin conexión. Revisá la red.")
+                            errorMessage = "Sin conexión. Revise la red.")
                     is ClaimCodeResult.ServerError -> banner?.copy(isGenerating = false,
                         errorMessage = "Error del servidor (${result.code}).") ?:
                         ClaimCodeBanner(code = "", expiresAtEpochMs = 0L, isGenerating = false,

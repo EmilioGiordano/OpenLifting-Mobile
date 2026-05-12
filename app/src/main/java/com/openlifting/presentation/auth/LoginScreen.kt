@@ -149,7 +149,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    "¿No tenés cuenta? Crear cuenta",
+                    "¿No tiene cuenta? Crear cuenta",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -159,9 +159,9 @@ fun LoginScreen(
 
 private fun LoginUiState.toMessage(): String? = when (this) {
     is LoginUiState.FieldErrors -> errors.values.firstOrNull()?.firstOrNull()
-        ?: "Revisá los datos ingresados."
+        ?: "Revise los datos ingresados."
     is LoginUiState.Error       -> message
-    LoginUiState.Throttled      -> "Demasiados intentos. Esperá un momento e intentá de nuevo."
-    LoginUiState.NetworkError   -> "No se pudo conectar a Vortex. Verificá tu conexión."
+    LoginUiState.Throttled      -> "Demasiados intentos. Espere un momento e intente de nuevo."
+    LoginUiState.NetworkError   -> "No se pudo conectar a Vortex. Verifique su conexión."
     else -> null
 }

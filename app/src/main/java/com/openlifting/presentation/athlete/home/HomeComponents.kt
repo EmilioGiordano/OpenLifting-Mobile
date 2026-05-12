@@ -403,12 +403,12 @@ fun HomeEmptyState(onStartFirstSession: () -> Unit) {
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            text  = "Aún no tenés sesiones",
+            text  = "Aún no tiene sesiones",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text  = "Empezá tu primera sesión para ver tu balance muscular y progreso.",
+            text  = "Empiece su primera sesión para ver su balance muscular y progreso.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

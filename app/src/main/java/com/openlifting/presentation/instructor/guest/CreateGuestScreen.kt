@@ -76,7 +76,7 @@ fun CreateGuestScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text  = "Creá una cuenta de invitado para registrar mediciones. Cuando el atleta cree su propia cuenta, podrás transferir todos sus datos.",
+                    text  = "Cree una cuenta de invitado para registrar mediciones. Cuando el atleta cree su propia cuenta, podrá transferir todos sus datos.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

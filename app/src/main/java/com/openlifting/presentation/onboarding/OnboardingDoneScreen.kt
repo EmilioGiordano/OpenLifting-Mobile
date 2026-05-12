@@ -43,9 +43,9 @@ fun OnboardingDoneScreen(
     val isSubmitting = submission is SubmissionState.Submitting
     val errorMessage = when (val s = submission) {
         is SubmissionState.Error        -> s.message
-        SubmissionState.NetworkError    -> "No se pudo conectar a Vortex. Verificá tu conexión."
+        SubmissionState.NetworkError    -> "No se pudo conectar a Vortex. Verifique su conexión."
         is SubmissionState.FieldErrors  -> s.errors.values.firstOrNull()?.firstOrNull()
-            ?: "Validación fallida. Reintentá."
+            ?: "Validación fallida. Reintente."
         else -> null
     }
 

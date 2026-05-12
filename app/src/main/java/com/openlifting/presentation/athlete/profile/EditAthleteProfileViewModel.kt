@@ -34,13 +34,13 @@ data class EditProfileDraft(
     }
     val bodyweightError: String? get() = when {
         bodyweightKg.isBlank() -> null
-        bodyweightKg.toDoubleOrNull() == null -> "Ingresá un número válido."
+        bodyweightKg.toDoubleOrNull() == null -> "Ingrese un número válido."
         bodyweightKg.toDouble() !in 30.0..300.0 -> "El peso debe estar entre 30 y 300 kg."
         else -> null
     }
     val ageError: String? get() = when {
         ageYears.isBlank() -> null
-        ageYears.toIntOrNull() == null -> "Ingresá un número entero."
+        ageYears.toIntOrNull() == null -> "Ingrese un número entero."
         ageYears.toInt() !in 14..100 -> "La edad debe estar entre 14 y 100 años."
         else -> null
     }
@@ -111,13 +111,13 @@ class EditAthleteProfileViewModel @Inject constructor(
                 is AthleteProfileResult.ValidationError ->
                     _submission.value = SubmissionState.FieldErrors(result.errors)
                 AthleteProfileResult.NotFound ->
-                    _submission.value = SubmissionState.Error("No tenés perfil creado todavía.")
+                    _submission.value = SubmissionState.Error("No tiene perfil creado todavía.")
                 AthleteProfileResult.Forbidden ->
-                    _submission.value = SubmissionState.Error("No tenés permisos para editar este perfil.")
+                    _submission.value = SubmissionState.Error("No tiene permisos para editar este perfil.")
                 AthleteProfileResult.Unauthorized ->
-                    _submission.value = SubmissionState.Error("Tu sesión expiró. Volvé a iniciar sesión.")
+                    _submission.value = SubmissionState.Error("Su sesión expiró. Vuelva a iniciar sesión.")
                 AthleteProfileResult.Throttled ->
-                    _submission.value = SubmissionState.Error("Demasiados intentos. Esperá un momento.")
+                    _submission.value = SubmissionState.Error("Demasiados intentos. Espere un momento.")
                 is AthleteProfileResult.NetworkError ->
                     _submission.value = SubmissionState.NetworkError
                 is AthleteProfileResult.ServerError ->

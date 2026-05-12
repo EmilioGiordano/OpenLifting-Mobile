@@ -40,13 +40,13 @@ data class ProfileDraft(
     }
     val bodyweightError: String? get() = when {
         bodyweightKg.isBlank() -> null
-        bodyweightKg.toFloatOrNull() == null -> "Ingresá un número válido."
+        bodyweightKg.toFloatOrNull() == null -> "Ingrese un número válido."
         bodyweightKg.toFloat() !in 30f..300f -> "El peso debe estar entre 30 y 300 kg."
         else -> null
     }
     val ageError: String? get() = when {
         ageYears.isBlank() -> null
-        ageYears.toIntOrNull() == null -> "Ingresá un número entero."
+        ageYears.toIntOrNull() == null -> "Ingrese un número entero."
         ageYears.toInt() !in 14..100 -> "La edad debe estar entre 14 y 100 años."
         else -> null
     }
@@ -166,11 +166,11 @@ class OnboardingViewModel @Inject constructor(
                 AthleteProfileResult.NotFound ->
                     _profileSubmission.value = SubmissionState.Error("Recurso no encontrado en el servidor.")
                 AthleteProfileResult.Forbidden ->
-                    _profileSubmission.value = SubmissionState.Error("No tenés permisos para crear un perfil de atleta.")
+                    _profileSubmission.value = SubmissionState.Error("No tiene permisos para crear un perfil de atleta.")
                 AthleteProfileResult.Unauthorized ->
-                    _profileSubmission.value = SubmissionState.Error("Tu sesión expiró. Volvé a iniciar sesión.")
+                    _profileSubmission.value = SubmissionState.Error("Su sesión expiró. Vuelva a iniciar sesión.")
                 AthleteProfileResult.Throttled ->
-                    _profileSubmission.value = SubmissionState.Error("Demasiados intentos. Esperá un momento.")
+                    _profileSubmission.value = SubmissionState.Error("Demasiados intentos. Espere un momento.")
                 is AthleteProfileResult.NetworkError ->
                     _profileSubmission.value = SubmissionState.NetworkError
                 is AthleteProfileResult.ServerError ->
@@ -256,11 +256,11 @@ class OnboardingViewModel @Inject constructor(
                 is MvcCalibrationResult.ValidationError ->
                     _calibrationSubmission.value = SubmissionState.FieldErrors(result.errors)
                 MvcCalibrationResult.Forbidden ->
-                    _calibrationSubmission.value = SubmissionState.Error("No tenés permisos para calibrar.")
+                    _calibrationSubmission.value = SubmissionState.Error("No tiene permisos para calibrar.")
                 MvcCalibrationResult.Unauthorized ->
-                    _calibrationSubmission.value = SubmissionState.Error("Tu sesión expiró. Volvé a iniciar sesión.")
+                    _calibrationSubmission.value = SubmissionState.Error("Su sesión expiró. Vuelva a iniciar sesión.")
                 MvcCalibrationResult.Throttled ->
-                    _calibrationSubmission.value = SubmissionState.Error("Demasiados intentos. Esperá un momento.")
+                    _calibrationSubmission.value = SubmissionState.Error("Demasiados intentos. Espere un momento.")
                 is MvcCalibrationResult.NetworkError ->
                     _calibrationSubmission.value = SubmissionState.NetworkError
                 is MvcCalibrationResult.ServerError ->

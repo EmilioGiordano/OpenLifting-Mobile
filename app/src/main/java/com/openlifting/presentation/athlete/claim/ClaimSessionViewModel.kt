@@ -57,13 +57,13 @@ class ClaimSessionViewModel @Inject constructor(
                 ClaimRedeemResult.Forbidden ->
                     _ui.value = ClaimSessionUiState.Error("Tu cuenta no puede reclamar sesiones.")
                 ClaimRedeemResult.Throttled ->
-                    _ui.value = ClaimSessionUiState.Error("Demasiados intentos. Esperá unos minutos.")
+                    _ui.value = ClaimSessionUiState.Error("Demasiados intentos. Espere unos minutos.")
                 is ClaimRedeemResult.ValidationError ->
                     _ui.value = ClaimSessionUiState.Error(
                         result.errors.values.flatten().firstOrNull() ?: "El código no es válido."
                     )
                 is ClaimRedeemResult.NetworkError ->
-                    _ui.value = ClaimSessionUiState.Error("Sin conexión. Revisá la red.")
+                    _ui.value = ClaimSessionUiState.Error("Sin conexión. Revise la red.")
                 is ClaimRedeemResult.ServerError ->
                     _ui.value = ClaimSessionUiState.Error("Error del servidor (${result.code}).")
             }

@@ -53,7 +53,7 @@ fun OnboardingProfileScreen(
     val fieldErrors = (submission as? SubmissionState.FieldErrors)?.errors ?: emptyMap()
     val generalMessage = when (val s = submission) {
         is SubmissionState.Error    -> s.message
-        SubmissionState.NetworkError -> "No se pudo conectar a Vortex. Verificá tu conexión."
+        SubmissionState.NetworkError -> "No se pudo conectar a Vortex. Verifique su conexión."
         else -> null
     }
 

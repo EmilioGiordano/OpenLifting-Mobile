@@ -93,7 +93,7 @@ fun RegisterScreen(
                 Spacer(Modifier.height(8.dp))
 
                 Text(
-                    "Vamos a crear tu cuenta — después configuramos tu perfil y MVC.",
+                    "Vamos a crear su cuenta — después configuramos su perfil y MVC.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -220,7 +220,7 @@ private fun FieldWithError(
 
 private fun LoginUiState.toGeneralMessage(): String? = when (this) {
     is LoginUiState.Error     -> message
-    LoginUiState.Throttled    -> "Demasiados intentos. Esperá un momento e intentá de nuevo."
-    LoginUiState.NetworkError -> "No se pudo conectar a Vortex. Verificá tu conexión."
+    LoginUiState.Throttled    -> "Demasiados intentos. Espere un momento e intente de nuevo."
+    LoginUiState.NetworkError -> "No se pudo conectar a Vortex. Verifique su conexión."
     else -> null
 }

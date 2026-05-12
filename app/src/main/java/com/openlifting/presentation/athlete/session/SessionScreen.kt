@@ -855,7 +855,7 @@ private fun ClaimCodeCard(banner: ClaimCodeBanner?, onGenerate: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text  = "Si tu atleta tiene cuenta en OpenLifting, generá un código de 8 caracteres y pasáselo. Vence en 5 minutos.",
+            text  = "Si su atleta tiene cuenta en OpenLifting, genere un código de 8 caracteres y pásélo. Vence en 5 minutos.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -118,12 +118,12 @@ private fun EmptyBlock(state: InstructorHomeUiData) {
             }
             Spacer(Modifier.height(2.dp))
             Text(
-                text  = "Aún no tenés atletas",
+                text  = "Aún no tiene atletas",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text  = "Creá un invitado para registrar mediciones, o generá un código QR para que un atleta registrado se vincule con vos.",
+                text  = "Cree un invitado para registrar mediciones, o genere un código QR para que un atleta registrado se vincule con usted.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

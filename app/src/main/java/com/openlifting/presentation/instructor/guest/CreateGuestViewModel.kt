@@ -35,13 +35,13 @@ data class GuestDraft(
     }
     val bodyweightError: String? get() = when {
         bodyweightKg.isBlank() -> null
-        bodyweightKg.toFloatOrNull() == null -> "Ingresá un número válido."
+        bodyweightKg.toFloatOrNull() == null -> "Ingrese un número válido."
         bodyweightKg.toFloat() !in 30f..300f -> "El peso debe estar entre 30 y 300 kg."
         else -> null
     }
     val ageError: String? get() = when {
         ageYears.isBlank() -> null
-        ageYears.toIntOrNull() == null -> "Ingresá un número entero."
+        ageYears.toIntOrNull() == null -> "Ingrese un número entero."
         ageYears.toInt() !in 14..100 -> "La edad debe estar entre 14 y 100 años."
         else -> null
     }
@@ -128,14 +128,14 @@ class CreateGuestViewModel @Inject constructor(
                     GuestProfileResult.Forbidden ->
                         _submissionError.value = "Solo un entrenador puede crear invitados."
                     GuestProfileResult.Unauthorized ->
-                        _submissionError.value = "Tu sesión expiró. Volvé a iniciar sesión."
+                        _submissionError.value = "Su sesión expiró. Vuelva a iniciar sesión."
                     GuestProfileResult.NotFound,
                     GuestProfileResult.Throttled ->
-                        _submissionError.value = "No se pudo crear al invitado. Intentá de nuevo."
+                        _submissionError.value = "No se pudo crear al invitado. Intente de nuevo."
                     is GuestProfileResult.NetworkError ->
-                        _submissionError.value = "Sin conexión. Revisá la red e intentá de nuevo."
+                        _submissionError.value = "Sin conexión. Revise la red e intente de nuevo."
                     is GuestProfileResult.ServerError ->
-                        _submissionError.value = "Error del servidor (${result.code}). Intentá más tarde."
+                        _submissionError.value = "Error del servidor (${result.code}). Intente más tarde."
                 }
             } finally {
                 _isSaving.value = false
